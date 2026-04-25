@@ -24,6 +24,8 @@ Or import functions directly::
 """
 
 from . import conversions
+from . import mass as mass_module
+from .mass import mass, frame_labels
 
 __version__ = "0.1.0"
-__all__ = ["conversions"]
+__all__ = ["conversions", "mass", "frame_labels"]

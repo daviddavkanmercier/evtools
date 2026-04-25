@@ -36,7 +36,7 @@ For example `mtob`, `pltom`, `qtow`, `beltov`, etc.
 ## Installation
 
 ```bash
-pip install evtools
+pip install evtools-dst
 ```
 
 Or from source:
