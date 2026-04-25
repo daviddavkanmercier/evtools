@@ -1,13 +1,12 @@
 [build-system]
 requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.backends.legacy:build"
+build-backend = "setuptools.build_meta"
 
 [project]
-name = "evtools"
+name = "evtools-dst"
 version = "0.1.0"
-description = "Evidence Theory Tools — utilities for Dempster-Shafer belief functions"
+description = "Evidence Theory Tools — utilities for Dempster-Shafer theory of belief functions"
 readme = "README.md"
-license = { file = "LICENSE" }
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.24",
@@ -40,9 +39,12 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/<your-username>/evtools"
-Repository = "https://github.com/<your-username>/evtools"
-Issues = "https://github.com/<your-username>/evtools/issues"
+Homepage = "https://github.com/ton-username/evtools"
+Repository = "https://github.com/ton-username/evtools"
+Issues = "https://github.com/ton-username/evtools/issues"
+
+[tool.setuptools]
+license-files = []
 
 [tool.setuptools.packages.find]
 where = ["."]
