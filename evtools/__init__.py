@@ -7,25 +7,24 @@ in the Dempster-Shafer theory of evidence.
 
 Submodules
 ----------
+evtools.dsvector
+    DSVector — unified container for any belief function representation,
+    with sparse and dense modes.
+
 evtools.conversions
-    Conversion functions between all standard belief function
-    representations (m, bel, pl, b, q, v, w).
+    Low-level conversion functions between all standard representations
+    (m, bel, pl, b, q, v, w) via the Fast Möbius Transform.
 
 Usage
 -----
-Import the submodule::
+    from evtools.dsvector import DSVector, Kind
 
-    from evtools import conversions
-    conversions.mtob(m)
-
-Or import functions directly::
-
-    from evtools.conversions import mtob, mtopl
+    m = DSVector.from_focal(["a", "b"], {"a": 0.3, "b": 0.5})
+    pl = m.to_pl()
 """
 
 from . import conversions
-from . import mass as mass_module
-from .mass import mass, frame_labels
+from .dsvector import DSVector, Kind
 
-__version__ = "0.1.0"
-__all__ = ["conversions", "mass", "frame_labels"]
+__version__ = "0.2.0"
+__all__ = ["conversions", "DSVector", "Kind"]

@@ -16,8 +16,8 @@ Kind.BEL : Belief function
 Kind.PL  : Plausibility function
 Kind.B   : Commonality function
 Kind.Q   : Implicability function
-Kind.V   : Conjunctive weight function
-Kind.W   : Disjunctive weight function
+Kind.V   : Disjunctive weight function
+Kind.W   : Conjunctive weight function
 
 Constructors
 ------------
@@ -59,8 +59,8 @@ class Kind(Enum):
     PL  = "pl"   # Plausibility function
     B   = "b"    # Commonality function
     Q   = "q"    # Implicability function
-    V   = "v"    # Conjunctive weight function
-    W   = "w"    # Disjunctive weight function
+    V   = "v"    # Disjunctive weight function
+    W   = "w"    # Conjunctive weight function
 
 
 # ---------------------------------------------------------------------------
@@ -275,16 +275,35 @@ class DSVector:
         """
         Build from a dense numpy array.
 
+        The array follows the binary index ordering of Smets (2002): index i
+        corresponds to the subset whose members are the atoms at positions
+        indicated by the 1-bits of i.
+
+        For frame = ["a", "b", "c"] the 8 indices map to:
+            0 (000) → ∅
+            1 (001) → {a}
+            2 (010) → {b}
+            3 (011) → {a, b}
+            4 (100) → {c}
+            5 (101) → {a, c}
+            6 (110) → {b, c}
+            7 (111) → {a, b, c}
+
         Parameters
         ----------
         frame : list[str]
-            Ordered list of atoms.
+            Ordered list of atoms — their order defines the bit positions.
         array : np.ndarray
-            Dense vector of length 2 ** len(frame).
+            Dense vector of length 2 ** len(frame), in binary index order.
         kind : Kind
             Interpretation of the values (default: Kind.M).
         tol : float
             Values whose absolute value is ≤ tol are dropped from sparse.
+
+        References
+        ----------
+        Smets, P. (2002). The application of the matrix calculus to belief
+        functions. International Journal of Approximate Reasoning, 31, 1-30.
         """
         n = len(frame)
         expected = 2 ** n
@@ -400,6 +419,25 @@ class DSVector:
     def to_w(self)   -> "DSVector": return self.to(Kind.W)
 
     # ------------------------------------------------------------------
+    # Combination operators
+    # ------------------------------------------------------------------
+
+    def __and__(self, other: "DSVector") -> "DSVector":
+        """CRC: m1 & m2  (sparse method by default)."""
+        from .combinations import crc
+        return crc(self, other)
+
+    def __matmul__(self, other: "DSVector") -> "DSVector":
+        """Dempster: m1 @ m2  (sparse method by default)."""
+        from .combinations import dempster
+        return dempster(self, other)
+
+    def __or__(self, other: "DSVector") -> "DSVector":
+        """DRC: m1 | m2  (sparse method by default)."""
+        from .combinations import drc
+        return drc(self, other)
+
+    # ------------------------------------------------------------------
     # Iteration and access
     # ------------------------------------------------------------------
 
@@ -419,18 +457,118 @@ class DSVector:
     # Display
     # ------------------------------------------------------------------
 
+    # ANSI codes
+    _RESET  = "\033[0m"
+    _BOLD   = "\033[1m"
+    _DIM    = "\033[2m"
+    _CYAN   = "\033[36m"
+    _BLUE   = "\033[34m"
+    _GREEN  = "\033[32m"
+    _YELLOW = "\033[33m"
+
+    # Bar characters (filled → empty)
+    _BAR_FULL  = "█"
+    _BAR_HALF  = "▌"
+    _BAR_EMPTY = "░"
+
+    _KIND_COLOR = {
+        Kind.M:   "\033[36m",   # cyan
+        Kind.BEL: "\033[34m",   # blue
+        Kind.PL:  "\033[32m",   # green
+        Kind.B:   "\033[33m",   # yellow
+        Kind.Q:   "\033[35m",   # magenta
+        Kind.V:   "\033[31m",   # red
+        Kind.W:   "\033[91m",   # bright red
+    }
+
+    _KIND_LABEL = {
+        Kind.M:   "Basic Belief Assignment",
+        Kind.BEL: "Belief function",
+        Kind.PL:  "Plausibility function",
+        Kind.B:   "Commonality function",
+        Kind.Q:   "Implicability function",
+        Kind.V:   "Disjunctive weights",
+        Kind.W:   "Conjunctive weights",
+    }
+
     def _subset_label(self, subset: frozenset) -> str:
         if not subset:
             return "∅"
         return "{" + ", ".join(sorted(subset, key=self._frame.index)) + "}"
 
+    def _bar(self, value: float, max_val: float, width: int = 16) -> str:
+        """Return a colored progress bar proportional to value/max_val."""
+        if max_val == 0:
+            ratio = 0.0
+        else:
+            ratio = max(0.0, min(1.0, abs(value) / max_val))
+        filled = int(ratio * width * 2)  # half-block precision
+        full   = filled // 2
+        half   = filled % 2
+        empty  = width - full - half
+        filled_part = f"{self._GREEN}{self._BAR_FULL * full}{self._BAR_HALF * half}{self._RESET}"
+        empty_part  = f"{self._DIM}{self._BAR_EMPTY * empty}{self._RESET}"
+        return filled_part + empty_part
+
     def __repr__(self) -> str:
-        kind_str = self._kind.value
-        frame_str = "{" + ", ".join(self._frame) + "}"
-        lines = [f"DSVector(kind={kind_str!r}, frame={frame_str})"]
-        for subset, value in sorted(
+        B, R, D = self._BOLD, self._RESET, self._DIM
+        kind_color = self._KIND_COLOR.get(self._kind, "")
+        kind_label = self._KIND_LABEL.get(self._kind, self._kind.value)
+        frame_str  = "{" + ", ".join(self._frame) + "}"
+        n_focal    = len(self._sparse)
+
+        # Header
+        lines = [
+            f"{B}DSVector{R}  "
+            f"kind={kind_color}{B}{self._kind.value}{R}  "
+            f"{D}({kind_label}){R}  "
+            f"frame={B}{frame_str}{R}  "
+            f"{D}{n_focal} focal element{'s' if n_focal != 1 else ''}{R}"
+        ]
+
+        if not self._sparse:
+            lines.append(f"  {D}(empty){R}")
+            return "\n".join(lines)
+
+        # Column widths
+        col_subset = max(len(self._subset_label(s)) for s in self._sparse)
+        col_subset = max(col_subset, 6)
+
+        # Separator
+        sep = f"  {D}{'─' * (col_subset + 2)}{'─' * 10}{'─' * 19}{R}"
+        header_row = (
+            f"  {B}{'Subset':<{col_subset}}  {'Value':>8}  {'':19}{R}"
+        )
+        lines += ["", header_row, sep]
+
+        # Values sorted by index
+        sorted_items = sorted(
             self._sparse.items(),
-            key=lambda kv: (_subset_index(kv[0], self._frame),),
-        ):
-            lines.append(f"  {self._subset_label(subset):20s} {value:.6g}")
+            key=lambda kv: _subset_index(kv[0], self._frame),
+        )
+
+        # Max absolute value for bar scaling
+        max_val = max(abs(v) for _, v in sorted_items) if sorted_items else 1.0
+
+        for subset, value in sorted_items:
+            label = self._subset_label(subset)
+            bar   = self._bar(value, max_val)
+            lines.append(
+                f"  {self._BLUE}{label:<{col_subset}}{R}"
+                f"  {B}{value:>8.4f}{R}"
+                f"  {bar}"
+            )
+
+        lines.append(sep)
+
+        # Footer: total (only meaningful for Kind.M)
+        total = sum(self._sparse.values())
+        if self._kind == Kind.M:
+            ok = abs(total - 1.0) < 1e-9
+            total_color = self._GREEN if ok else self._YELLOW
+            lines.append(
+                f"  {D}{'Total':<{col_subset}}  "
+                f"{total_color}{B}{total:>8.4f}{R}"
+            )
+
         return "\n".join(lines)

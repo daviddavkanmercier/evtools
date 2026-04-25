@@ -9,7 +9,6 @@ with belief functions in the Dempster-Shafer theory of evidence.
 |--------|-------------|
 | `evtools.dsvector` | `DSVector` — unified container for any belief function representation |
 | `evtools.conversions` | Low-level conversions between all standard representations via the Fast Möbius Transform |
-| `evtools.mass` | Human-friendly construction of mass functions |
 
 ---
 
@@ -96,24 +95,6 @@ print(mtow(m))    # disjunctive weight function
 
 ---
 
-## `evtools.mass`
-
-Utility functions for constructing mass functions from human-readable input.
-
-```python
-from evtools.mass import mass, frame_labels
-
-# Build a mass vector; missing mass goes to Ω automatically
-m = mass(["a", "b"], {"a": 0.3})
-# → array([0. , 0.3, 0. , 0.7])
-
-# Human-readable labels for all 2^n subsets
-frame_labels(["a", "b"])
-# → ['∅', 'a', 'b', 'a,b']
-```
-
----
-
 ## Installation
 
 ```bash
@@ -137,13 +118,10 @@ pytest tests/
 
 ## References
 
-- Smets, P. (2002). *The application of the matrix calculus to belief functions.*
-  International Journal of Approximate Reasoning.
-- Denoeux, T. (2008). *Conjunctive and disjunctive combination of belief functions
-  induced by non-distinct bodies of evidence.* Artificial Intelligence.
-- Mercier, D., Quost, B., & Denoeux, T. (2008). *Refined modeling of sensor
-  reliability in the belief function framework using contextual discounting.*
-  Information Sciences.
+- P. Smets. *The application of the matrix calculus to belief functions*, International Journal of Approximate Reasoning, 31(1–2):1–30, 2002.
+- T. Denœux. *Conjunctive and disjunctive combination of belief functions induced
+by non-distinct bodies of evidence*, Artificial Intelligence, 172:234–264, 2008.
+- D. Mercier, B. Quost, T. Denœux, *Refined modeling of sensor reliability in the belief function framework using contextual discounting*, Information Fusion, Vol. 9, Issue 2, pp 246-258, April 2008.
 
 ## License
 

@@ -215,3 +215,36 @@ def test_repr_contains_kind_and_frame():
     assert "m" in r
     assert "a" in r
     assert "b" in r
+
+def test_repr_contains_kind_label():
+    assert "Basic Belief Assignment" in repr(DSVector.from_dense(FRAME2, DENSE2))
+    assert "Belief function"         in repr(DSVector.from_dense(FRAME2, DENSE2).to_bel())
+    assert "Plausibility function"   in repr(DSVector.from_dense(FRAME2, DENSE2).to_pl())
+
+def test_repr_contains_subset_labels():
+    m = DSVector.from_focal(FRAME2, {"a": 0.3, "b": 0.5, "a,b": 0.2})
+    r = repr(m)
+    assert "{a}" in r
+    assert "{b}" in r
+    assert "{a, b}" in r
+
+def test_repr_contains_total_for_m():
+    m = DSVector.from_dense(FRAME2, DENSE2)
+    assert "Total" in repr(m)
+
+def test_repr_no_total_for_bel():
+    m = DSVector.from_dense(FRAME2, DENSE2)
+    assert "Total" not in repr(m.to_bel())
+
+def test_repr_empty_set_label():
+    m = DSVector.from_focal(FRAME2, {"": 0.1, "a": 0.9}, complete=False)
+    assert "∅" in repr(m)
+
+def test_repr_focal_count():
+    m = DSVector.from_dense(FRAME2, DENSE2)
+    assert "3 focal elements" in repr(m)
+
+def test_repr_single_focal_singular():
+    m = DSVector.from_focal(FRAME2, {"a": 1.0})
+    assert "1 focal element" in repr(m)
+    assert "1 focal elements" not in repr(m)

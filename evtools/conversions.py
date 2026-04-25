@@ -2,27 +2,45 @@
 Conversion functions between the different representations of belief functions
 in the Dempster-Shafer theory of evidence.
 
+All functions operate on plain numpy arrays of length 2^n, where n is the
+number of atoms in the frame of discernment.
+
+Binary index ordering (Smets 2002)
+-----------------------------------
+Index i in the array corresponds to the subset whose members are the atoms
+at the bit positions set in i. For frame = [x1, x2, ..., xn]:
+
+    index 0  (00...0) → ∅
+    index 1  (00...1) → {x1}
+    index 2  (00..10) → {x2}
+    index 3  (00..11) → {x1, x2}
+    ...
+    index 2^n - 1    → {x1, x2, ..., xn} = Ω
+
+This ordering is essential for the Fast Möbius Transform (FMT) algorithm
+that underlies all conversions in this module. See Smets (2002, Section 3)
+for the full derivation and MatLab code.
+
 Supported representations:
-    - b   : commonality function
-    - bel : belief function
-    - m   : basic belief assignment (mass function)
-    - pl  : plausibility function
-    - q   : implicability function
-    - v   : conjunctive weight function
-    - w   : disjunctive weight function
+    - m   : Basic Belief Assignment (mass function)
+    - b   : implicability function,  b(A) = Σ_{B⊆A} m(B)
+    - bel : belief function,         bel(A) = b(A) - m(∅)
+    - pl  : plausibility function,   pl(A) = 1 - b(Ā)
+    - q   : commonality function,    q(A) = Σ_{B⊇A} m(B)
+    - v   : disjunctive weight function  (Denoeux 2008)
+    - w   : conjunctive weight function  (Denoeux 2008)
 
 Each function is named ``<source>to<target>``, e.g. ``mtob`` converts a mass
-function to a commonality function.
+function to its implicability function.
 
 References:
-    Smets, P. (2002). The application of the transferable belief model to
-    diagnostic problems. International Journal of Intelligent Systems.
+    Smets, P. (2002). The application of the matrix calculus to belief
+    functions. International Journal of Approximate Reasoning, 31, 1-30.
 
     Denoeux, T. (2008). Conjunctive and disjunctive combination of belief
     functions induced by non-distinct bodies of evidence. Artificial
-    Intelligence.
+    Intelligence, 172, 234-264.
 """
-
 import numpy as np
 
 
@@ -71,14 +89,14 @@ def btoq(b: np.ndarray) -> np.ndarray:
 
 
 def btov(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to conjunctive weight function *v* (Denoeux 2008)."""
+    """Convert commonality *b* to disjunctive weight function *v* (Denoeux 2008)."""
     v = np.exp(-btom(np.log(b)))
     v[0] = 1
     return v
 
 
 def btow(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to disjunctive weight function *w*."""
+    """Convert commonality *b* to conjunctive weight function *w*."""
     return qtow(btoq(b))
 
 
@@ -111,12 +129,12 @@ def beltoq(bel: np.ndarray) -> np.ndarray:
 
 
 def beltov(bel: np.ndarray) -> np.ndarray:
-    """Convert belief function *bel* to conjunctive weight function *v*."""
+    """Convert belief function *bel* to disjunctive weight function *v*."""
     return btov(beltob(bel))
 
 
 def beltow(bel: np.ndarray) -> np.ndarray:
-    """Convert belief function *bel* to disjunctive weight function *w*."""
+    """Convert belief function *bel* to conjunctive weight function *w*."""
     return qtow(beltoq(bel))
 
 
@@ -163,12 +181,12 @@ def mtoq(m: np.ndarray) -> np.ndarray:
 
 
 def mtov(m: np.ndarray) -> np.ndarray:
-    """Convert mass function *m* to conjunctive weight function *v*."""
+    """Convert mass function *m* to disjunctive weight function *v*."""
     return btov(mtob(m))
 
 
 def mtow(m: np.ndarray) -> np.ndarray:
-    """Convert mass function *m* to disjunctive weight function *w*."""
+    """Convert mass function *m* to conjunctive weight function *w*."""
     return qtow(mtoq(m))
 
 
@@ -205,12 +223,12 @@ def pltoq(pl: np.ndarray) -> np.ndarray:
 
 
 def pltov(pl: np.ndarray) -> np.ndarray:
-    """Convert plausibility function *pl* to conjunctive weight function *v*."""
+    """Convert plausibility function *pl* to disjunctive weight function *v*."""
     return btov(pltob(pl))
 
 
 def pltow(pl: np.ndarray) -> np.ndarray:
-    """Convert plausibility function *pl* to disjunctive weight function *w*."""
+    """Convert plausibility function *pl* to conjunctive weight function *w*."""
     return qtow(pltoq(pl))
 
 
@@ -250,80 +268,80 @@ def qtopl(q: np.ndarray) -> np.ndarray:
 
 
 def qtov(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to conjunctive weight function *v*."""
+    """Convert implicability function *q* to disjunctive weight function *v*."""
     return btov(qtob(q))
 
 
 def qtow(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to disjunctive weight function *w* (Denoeux 2008)."""
+    """Convert implicability function *q* to conjunctive weight function *w* (Denoeux 2008)."""
     w = np.exp(-qtom(np.log(q)))
     w[-1] = 1
     return w
 
 
 # ---------------------------------------------------------------------------
-# vto* — from conjunctive weight function
+# vto* — from disjunctive weight function
 # ---------------------------------------------------------------------------
 
 def vtob(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to commonality *b* (Denoeux 2008)."""
+    """Convert disjunctive weight function *v* to commonality *b* (Denoeux 2008)."""
     return np.prod(v) / np.exp(mtob(np.log(v)))
 
 
 def vtobel(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to belief function *bel*."""
+    """Convert disjunctive weight function *v* to belief function *bel*."""
     return btobel(vtob(v))
 
 
 def vtom(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to mass function *m*."""
+    """Convert disjunctive weight function *v* to mass function *m*."""
     return btom(vtob(v))
 
 
 def vtopl(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to plausibility function *pl*."""
+    """Convert disjunctive weight function *v* to plausibility function *pl*."""
     return btopl(vtob(v))
 
 
 def vtoq(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to implicability function *q*."""
+    """Convert disjunctive weight function *v* to implicability function *q*."""
     return btoq(vtob(v))
 
 
 def vtow(v: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *v* to disjunctive weight function *w*."""
+    """Convert disjunctive weight function *v* to conjunctive weight function *w*."""
     return btow(vtob(v))
 
 
 # ---------------------------------------------------------------------------
-# wto* — from disjunctive weight function
+# wto* — from conjunctive weight function
 # ---------------------------------------------------------------------------
 
 def wtob(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to commonality *b*."""
+    """Convert conjunctive weight function *w* to commonality *b*."""
     return qtob(wtoq(w))
 
 
 def wtobel(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to belief function *bel*."""
+    """Convert conjunctive weight function *w* to belief function *bel*."""
     return qtobel(wtoq(w))
 
 
 def wtom(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to mass function *m*."""
+    """Convert conjunctive weight function *w* to mass function *m*."""
     return qtom(wtoq(w))
 
 
 def wtopl(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to plausibility function *pl*."""
+    """Convert conjunctive weight function *w* to plausibility function *pl*."""
     return qtopl(wtoq(w))
 
 
 def wtoq(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to implicability function *q* (Denoeux 2008)."""
+    """Convert conjunctive weight function *w* to implicability function *q* (Denoeux 2008)."""
     return np.prod(w) / np.exp(mtoq(np.log(w)))
 
 
 def wtov(w: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *w* to conjunctive weight function *v*."""
+    """Convert conjunctive weight function *w* to disjunctive weight function *v*."""
     return qtov(wtoq(w))
