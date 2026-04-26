@@ -8,6 +8,8 @@ dempster(m1, m2, method="sparse") — Dempster's normalized conjunctive rule
 drc(m1, m2, method="sparse")      — Disjunctive Rule of Combination (TBM)
 cautious(m1, m2)                  — Cautious conjunctive rule (nondistinct sources)
 bold(m1, m2)                      — Bold disjunctive rule (nondistinct sources)
+decombine_crc(m1, m2)             — Conjunctive decombination (inverse of CRC)
+decombine_drc(m1, m2)             — Disjunctive decombination (inverse of DRC)
 
 Operator shortcuts on DSVector
 -------------------------------
@@ -300,3 +302,103 @@ def bold(m1: DSVector, m2: DSVector) -> DSVector:
         raise ValueError("bold: m2 is normal (m(∅) = 0). Bold rule requires subnormal BBAs.")
     v12 = np.minimum(mtov(m1.dense), mtov(m2.dense))
     return DSVector.from_dense(m1.frame, vtom(v12), kind=Kind.M)
+
+
+# ---------------------------------------------------------------------------
+# Decombination rules
+# ---------------------------------------------------------------------------
+
+def decombine_crc(m1: DSVector, m2: DSVector) -> DSVector:
+    """
+    Conjunctive decombination: m1 6∩ m2.
+
+    Removes m2 from a previously computed conjunctive combination.
+    Defined via commonality functions:
+
+        q_result(A) = q1(A) / q2(A),  ∀A ⊆ Ω
+
+    Requires m2 to be non-dogmatic (q2(A) > 0 for all A ⊆ Ω).
+
+    Warning
+    -------
+    The result may not be a valid BBA (negative masses or sum ≠ 1).
+    Check .is_valid before use.
+
+    Parameters
+    ----------
+    m1, m2 : DSVector
+        Two BBAs (kind=Kind.M) on the same frame.
+        m2 must be non-dogmatic.
+
+    Returns
+    -------
+    DSVector
+        The decombined BBA. Check .is_valid before use.
+
+    Raises
+    ------
+    ValueError
+        If m1 or m2 is not a BBA, frames differ, or m2 is dogmatic.
+
+    References
+    ----------
+    Pichon et al. (2016). IJAR, 72, 4-42. Eq. (5).
+    Denoeux, T. (2008). Artificial Intelligence, 172, 234-264.
+    """
+    _check_compatible(m1, m2, "decombine_crc")
+    q1 = mtoq(m1.dense)
+    q2 = mtoq(m2.dense)
+    if np.any(np.isclose(q2, 0.0)):
+        raise ValueError(
+            "decombine_crc: m2 is dogmatic (q2(A)=0 for some A). "
+            "Decombination requires a non-dogmatic BBA."
+        )
+    return DSVector.from_dense(m1.frame, qtom(q1 / q2), kind=Kind.M)
+
+
+def decombine_drc(m1: DSVector, m2: DSVector) -> DSVector:
+    """
+    Disjunctive decombination: m1 6∪ m2.
+
+    Removes m2 from a previously computed disjunctive combination.
+    Defined via implicability functions:
+
+        b_result(A) = b1(A) / b2(A),  ∀A ⊆ Ω
+
+    Requires m2 to be non-normal (b2(A) > 0 for all A ⊆ Ω).
+
+    Warning
+    -------
+    The result may not be a valid BBA (negative masses or sum ≠ 1).
+    Check .is_valid before use.
+
+    Parameters
+    ----------
+    m1, m2 : DSVector
+        Two BBAs (kind=Kind.M) on the same frame.
+        m2 must be non-normal (subnormal: m2(∅) > 0).
+
+    Returns
+    -------
+    DSVector
+        The decombined BBA. Check .is_valid before use.
+
+    Raises
+    ------
+    ValueError
+        If m1 or m2 is not a BBA, frames differ, or m2 is normal.
+
+    References
+    ----------
+    Pichon et al. (2016). IJAR, 72, 4-42. Eq. (5).
+    Denoeux, T. (2008). Artificial Intelligence, 172, 234-264.
+    """
+    _check_compatible(m1, m2, "decombine_drc")
+    b1 = mtob(m1.dense)
+    b2 = mtob(m2.dense)
+    if np.any(np.isclose(b2, 0.0)):
+        raise ValueError(
+            "decombine_drc: m2 is normal (b2(A)=0 for some A). "
+            "Decombination requires a non-normal (subnormal) BBA."
+        )
+    return DSVector.from_dense(m1.frame, btom(b1 / b2), kind=Kind.M)

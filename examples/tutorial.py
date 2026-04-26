@@ -281,3 +281,42 @@ print(contextual_negate(s, {frozenset({"a"}): 0.7}))
 print(f"\n{DIM}# is_valid — useful after decombination operations{R}")
 print(f"  Original BBA is_valid : {s.is_valid}")
 print(f"  Discounted   is_valid : {discount(s, 0.4).is_valid}")
+
+# ---------------------------------------------------------------------------
+# 11. Simple MFs and decombination
+# ---------------------------------------------------------------------------
+
+section("11. Simple MFs and decombination")
+
+from evtools.combinations import decombine_crc, decombine_drc
+
+# --- DSVector.simple and DSVector.negative_simple ---
+print(f"{DIM}# Simple MF A^β — focal sets Ω and A{R}")
+s = DSVector.simple(frame, frozenset({"a"}), beta=0.6)
+print(s)
+
+print(f"\n{DIM}# Negative simple MF θ^β — focal sets ∅ and θ{R}")
+ns = DSVector.negative_simple(frame, frozenset({"a"}), beta=0.4)
+print(ns)
+
+# --- decombine_crc ---
+print(f"\n{DIM}# decombine_crc: m1 6∩ m2 — removes m2 from a conjunctive combination{R}")
+m1 = DSVector.from_focal(frame, {"a": 0.4, "a,h,r": 0.6})
+m2 = DSVector.from_focal(frame, {"h": 0.3, "a,h,r": 0.7})
+from evtools.combinations import crc
+m12 = crc(m1, m2)
+m1_recovered = decombine_crc(m12, m2)
+ok = m1_recovered.is_valid and np.allclose(m1_recovered.dense, m1.dense, atol=1e-6)
+print(f"  crc(m1, m2) then decombine_crc(m12, m2) recovers m1: {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
+print(m1_recovered)
+
+# --- decombine_drc ---
+print(f"\n{DIM}# decombine_drc: m1 6∪ m2 — removes m2 from a disjunctive combination{R}")
+m1_sub = DSVector.from_focal(frame, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
+m2_sub = DSVector.from_focal(frame, {"": 0.2, "h": 0.3, "a,h,r": 0.5}, complete=False)
+from evtools.combinations import drc
+m12_d = drc(m1_sub, m2_sub)
+m1_recovered_d = decombine_drc(m12_d, m2_sub)
+ok_d = m1_recovered_d.is_valid and np.allclose(m1_recovered_d.dense, m1_sub.dense, atol=1e-6)
+print(f"  drc(m1, m2) then decombine_drc(m12, m2) recovers m1: {GREEN}✓ OK{R}" if ok_d else f"  {RED}✗ MISMATCH{R}")
+print(m1_recovered_d)

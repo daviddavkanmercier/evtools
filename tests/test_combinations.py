@@ -293,3 +293,99 @@ def test_bold_result_kind_m():
 
 def test_bold_result_sums_to_one():
     assert np.isclose(sum(bold(M1_SUB, M2_SUB).sparse.values()), 1.0)
+
+
+# ===========================================================================
+# decombine_crc and decombine_drc
+# ===========================================================================
+
+from evtools.combinations import decombine_crc, decombine_drc
+
+FRAME3 = ["a", "h", "r"]
+M1_C = DSVector.from_focal(FRAME3, {"a": 0.4, "a,h,r": 0.6})
+M2_C = DSVector.from_focal(FRAME3, {"h": 0.3, "a,h,r": 0.7})
+M1_D = DSVector.from_focal(FRAME3, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
+M2_D = DSVector.from_focal(FRAME3, {"": 0.2, "h": 0.3, "a,h,r": 0.5}, complete=False)
+
+
+def test_decombine_crc_inverts_crc():
+    from evtools.combinations import crc
+    m12 = crc(M1_C, M2_C)
+    recovered = decombine_crc(m12, M2_C)
+    assert recovered.is_valid
+    assert np.allclose(recovered.dense, M1_C.dense, atol=1e-6)
+
+
+def test_decombine_drc_inverts_drc():
+    from evtools.combinations import drc
+    m12 = drc(M1_D, M2_D)
+    recovered = decombine_drc(m12, M2_D)
+    assert recovered.is_valid
+    assert np.allclose(recovered.dense, M1_D.dense, atol=1e-6)
+
+
+def test_decombine_crc_dogmatic_raises():
+    m_dog = DSVector.from_focal(FRAME3, {"a": 0.5, "h": 0.5}, complete=False)
+    m12 = DSVector.from_focal(FRAME3, {"a": 0.3, "a,h,r": 0.7})
+    with pytest.raises(ValueError, match="dogmatic"):
+        decombine_crc(m12, m_dog)
+
+
+def test_decombine_drc_normal_raises():
+    m_normal = DSVector.from_focal(FRAME3, {"a": 0.5, "a,h,r": 0.5})
+    m12 = DSVector.from_focal(FRAME3, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
+    with pytest.raises(ValueError, match="normal"):
+        decombine_drc(m12, m_normal)
+
+
+def test_decombine_crc_kind_m():
+    from evtools.combinations import crc
+    assert decombine_crc(crc(M1_C, M2_C), M2_C).kind == Kind.M
+
+
+def test_decombine_drc_kind_m():
+    from evtools.combinations import drc
+    assert decombine_drc(drc(M1_D, M2_D), M2_D).kind == Kind.M
+
+
+# ===========================================================================
+# DSVector.simple and DSVector.negative_simple
+# ===========================================================================
+
+def test_simple_mf_focal_sets():
+    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=0.6)
+    assert np.isclose(s[frozenset({"a","h","r"})], 0.6)
+    assert np.isclose(s[frozenset({"a"})],          0.4)
+    assert np.isclose(sum(s.sparse.values()),        1.0)
+
+
+def test_simple_mf_beta1_vacuous():
+    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=1.0)
+    assert np.isclose(s[frozenset({"a","h","r"})], 1.0)
+
+
+def test_simple_mf_beta0_categorical():
+    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=0.0)
+    assert np.isclose(s[frozenset({"a"})], 1.0)
+
+
+def test_negative_simple_mf_focal_sets():
+    ns = DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=0.4)
+    assert np.isclose(ns[frozenset()],      0.4)
+    assert np.isclose(ns[frozenset({"a"})], 0.6)
+    assert np.isclose(sum(ns.sparse.values()), 1.0)
+
+
+def test_negative_simple_mf_beta0_categorical():
+    ns = DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=0.0)
+    assert np.isclose(ns[frozenset({"a"})], 1.0)
+
+
+def test_simple_beta_out_of_range_raises():
+    with pytest.raises(ValueError, match="beta"):
+        DSVector.simple(FRAME3, frozenset({"a"}), beta=1.5)
+
+
+def test_negative_simple_beta_out_of_range_raises():
+    with pytest.raises(ValueError, match="beta"):
+        DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=-0.1)

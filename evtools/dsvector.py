@@ -345,6 +345,94 @@ class DSVector:
                     )
         return cls(frame, dict(sparse), kind)
 
+    @classmethod
+    def simple(
+        cls,
+        frame: list[str],
+        subset: frozenset,
+        beta: float,
+    ) -> "DSVector":
+        """
+        Build a simple MF A^β (positive simple mass function).
+
+        Focal sets: Ω with mass β, A=subset with mass 1−β.
+
+        Used in the Contextual Reinforcement (CR) and Contextual
+        De-Reinforcement (CdR) correction mechanisms.
+
+        Parameters
+        ----------
+        frame : list[str]
+            Ordered list of atoms.
+        subset : frozenset
+            The focal set A ⊂ Ω (must be a proper subset of Ω).
+        beta : float
+            Mass assigned to Ω ∈ [0, 1]. Mass 1−β is assigned to A.
+
+        Returns
+        -------
+        DSVector
+            A BBA with at most two focal elements: A and Ω.
+
+        References
+        ----------
+        Denoeux, T. (2008). Artificial Intelligence, 172, 234-264.
+        Pichon et al. (2016). IJAR, 72, 4-42.
+        """
+        if not (0.0 <= beta <= 1.0):
+            raise ValueError(f"simple: beta must be in [0, 1], got {beta}.")
+        omega = frozenset(frame)
+        sparse: dict[frozenset, float] = {}
+        if beta > 1e-15:
+            sparse[omega] = beta
+        if 1.0 - beta > 1e-15:
+            sparse[subset] = 1.0 - beta
+        return cls(frame, sparse, Kind.M)
+
+    @classmethod
+    def negative_simple(
+        cls,
+        frame: list[str],
+        subset: frozenset,
+        beta: float,
+    ) -> "DSVector":
+        """
+        Build a negative simple MF θ^β (negative simple mass function).
+
+        Focal sets: ∅ with mass β, θ=subset with mass 1−β.
+        This is a subnormal BBA (m(∅) > 0 when β > 0).
+
+        Used in the Contextual Discounting (CD) and Contextual
+        De-Discounting (CdD) correction mechanisms.
+
+        Parameters
+        ----------
+        frame : list[str]
+            Ordered list of atoms.
+        subset : frozenset
+            The focal set θ ⊆ Ω.
+        beta : float
+            Mass assigned to ∅ ∈ [0, 1]. Mass 1−β is assigned to θ.
+
+        Returns
+        -------
+        DSVector
+            A subnormal BBA with at most two focal elements: ∅ and θ.
+
+        References
+        ----------
+        Denoeux, T. (2008). Artificial Intelligence, 172, 234-264.
+        Pichon et al. (2016). IJAR, 72, 4-42.
+        """
+        if not (0.0 <= beta <= 1.0):
+            raise ValueError(f"negative_simple: beta must be in [0, 1], got {beta}.")
+        sparse: dict[frozenset, float] = {}
+        if beta > 1e-15:
+            sparse[frozenset()] = beta
+        if 1.0 - beta > 1e-15:
+            sparse[subset] = 1.0 - beta
+        return cls(frame, sparse, Kind.M)
+
     # ------------------------------------------------------------------
     # Properties
     # ------------------------------------------------------------------
@@ -432,13 +520,33 @@ class DSVector:
         result_dense = _CONVERT[key](self.dense)
         return DSVector.from_dense(self._frame, result_dense, kind=kind)
 
-    def to_m(self)   -> "DSVector": return self.to(Kind.M)
-    def to_bel(self) -> "DSVector": return self.to(Kind.BEL)
-    def to_pl(self)  -> "DSVector": return self.to(Kind.PL)
-    def to_b(self)   -> "DSVector": return self.to(Kind.B)
-    def to_q(self)   -> "DSVector": return self.to(Kind.Q)
-    def to_v(self)   -> "DSVector": return self.to(Kind.V)
-    def to_w(self)   -> "DSVector": return self.to(Kind.W)
+    def to_m(self)   -> "DSVector":
+        """Convert to mass function (Kind.M)."""
+        return self.to(Kind.M)
+
+    def to_bel(self) -> "DSVector":
+        """Convert to belief function (Kind.BEL)."""
+        return self.to(Kind.BEL)
+
+    def to_pl(self)  -> "DSVector":
+        """Convert to plausibility function (Kind.PL)."""
+        return self.to(Kind.PL)
+
+    def to_b(self)   -> "DSVector":
+        """Convert to commonality function (Kind.B)."""
+        return self.to(Kind.B)
+
+    def to_q(self)   -> "DSVector":
+        """Convert to implicability function (Kind.Q)."""
+        return self.to(Kind.Q)
+
+    def to_v(self)   -> "DSVector":
+        """Convert to disjunctive weight function (Kind.V). Requires subnormal BBA."""
+        return self.to(Kind.V)
+
+    def to_w(self)   -> "DSVector":
+        """Convert to conjunctive weight function (Kind.W). Requires subnormal BBA."""
+        return self.to(Kind.W)
 
     # ------------------------------------------------------------------
     # Combination operators

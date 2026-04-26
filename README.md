@@ -52,6 +52,16 @@ m = DSVector.from_sparse(["a", "b", "c"], {
 })
 ```
 
+### Special constructors
+
+```python
+# Simple MF A^β — focal sets Ω (mass β) and A (mass 1−β)
+s = DSVector.simple(["a", "b", "c"], frozenset({"a"}), beta=0.6)
+
+# Negative simple MF θ^β — focal sets ∅ (mass β) and θ (mass 1−β)
+ns = DSVector.negative_simple(["a", "b", "c"], frozenset({"a"}), beta=0.4)
+```
+
 ### Conversions
 
 ```python
@@ -87,6 +97,10 @@ m12 = dempster(m1, m2)   # m1 @ m2  — Dempster's normalized rule
 m12 = drc(m1, m2)        # m1 | m2  — Disjunctive Rule, at least one reliable
 m12 = cautious(m1, m2)   # Cautious rule, nondistinct reliable sources
 m12 = bold(m1, m2)       # Bold disjunctive rule, nondistinct possibly unreliable
+
+# Decombination (inverse operations — result may not be a valid BBA, check .is_valid)
+m1  = decombine_crc(m12, m2)  # m12 6∩ m2 — removes m2 from a conjunctive combination
+m1  = decombine_drc(m12, m2)  # m12 6∪ m2 — removes m2 from a disjunctive combination
 ```
 
 Choice of rule:

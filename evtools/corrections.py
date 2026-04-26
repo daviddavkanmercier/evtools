@@ -56,7 +56,7 @@ from __future__ import annotations
 import numpy as np
 
 from .dsvector import DSVector, Kind
-from .combinations import drc
+from .combinations import drc, decombine_crc, decombine_drc
 
 
 # ---------------------------------------------------------------------------
@@ -132,93 +132,6 @@ def _check_partition(frame: list[str], betas: dict[frozenset, float],
             f"{fn}: atom(s) {missing} are not covered by any context "
             f"— the contexts must cover all of Ω (partition)."
         )
-
-
-# ---------------------------------------------------------------------------
-# Simple MF builders
-# ---------------------------------------------------------------------------
-
-def _negative_simple_mf(frame: list[str], subset: frozenset,
-                         beta: float) -> DSVector:
-    """
-    Build the negative simple MF θ^β.
-
-    Focal sets: ∅ with mass β, θ=subset with mass 1−β.
-    Used as corrective term in CD and CdD (disjunctive-based corrections).
-
-    Reference: Pichon et al. (2016), notation following Denoeux (2008).
-    """
-    sparse: dict[frozenset, float] = {}
-    if beta > 1e-15:
-        sparse[frozenset()] = beta
-    if 1.0 - beta > 1e-15:
-        sparse[subset] = 1.0 - beta
-    return DSVector.from_sparse(frame, sparse, kind=Kind.M)
-
-
-def _simple_mf(frame: list[str], subset: frozenset,
-               beta: float) -> DSVector:
-    """
-    Build the (positive) simple MF A^β.
-
-    Focal sets: Ω with mass β, A=subset with mass 1−β.
-    Used as corrective term in CR and CdR (conjunctive-based corrections).
-
-    Reference: Pichon et al. (2016), notation following Denoeux (2008).
-    """
-    omega = frozenset(frame)
-    sparse: dict[frozenset, float] = {}
-    if beta > 1e-15:
-        sparse[omega] = beta
-    if 1.0 - beta > 1e-15:
-        sparse[subset] = 1.0 - beta
-    return DSVector.from_sparse(frame, sparse, kind=Kind.M)
-
-
-# ---------------------------------------------------------------------------
-# Inverse combination helpers
-# ---------------------------------------------------------------------------
-
-def _disjunctive_decombine(m1: DSVector, m2: DSVector) -> DSVector:
-    """
-    Disjunctive decombination: m1 6∪ m2.
-
-    Defined via implicability functions: b_result = b1 / b2.
-    Requires m2 to be non-normal (b2(A) > 0 for all A ⊆ Ω).
-    The result may not be a valid BBA — check .is_valid.
-
-    Reference: Pichon et al. (2016), Eq. (5) and surrounding.
-    """
-    from .conversions import mtob, btom
-    b1 = mtob(m1.dense)
-    b2 = mtob(m2.dense)
-    if np.any(np.isclose(b2, 0.0)):
-        raise ValueError(
-            "disjunctive_decombine: m2 is normal (b2(A)=0 for some A). "
-            "Decombination requires a non-normal BBA."
-        )
-    return DSVector.from_dense(m1.frame, btom(b1 / b2), kind=Kind.M)
-
-
-def _conjunctive_decombine(m1: DSVector, m2: DSVector) -> DSVector:
-    """
-    Conjunctive decombination: m1 6∩ m2.
-
-    Defined via commonality functions: q_result = q1 / q2.
-    Requires m2 to be non-dogmatic (q2(A) > 0 for all A ⊆ Ω).
-    The result may not be a valid BBA — check .is_valid.
-
-    Reference: Pichon et al. (2016), Eq. (5) and surrounding.
-    """
-    from .conversions import mtoq, qtom
-    q1 = mtoq(m1.dense)
-    q2 = mtoq(m2.dense)
-    if np.any(np.isclose(q2, 0.0)):
-        raise ValueError(
-            "conjunctive_decombine: m2 is dogmatic (q2(A)=0 for some A). "
-            "Decombination requires a non-dogmatic BBA."
-        )
-    return DSVector.from_dense(m1.frame, qtom(q1 / q2), kind=Kind.M)
 
 
 # ---------------------------------------------------------------------------
@@ -303,7 +216,7 @@ def theta_contextual_discount(
     # Neutral element of DRC: the inconsistent BBA m(∅)=1
     corrective = DSVector.from_sparse(m.frame, {frozenset(): 1.0}, kind=Kind.M)
     for subset, beta in betas.items():
-        corrective = drc(corrective, _negative_simple_mf(m.frame, subset, beta))
+        corrective = drc(corrective, DSVector.negative_simple(m.frame, subset, beta))
 
     return drc(m, corrective)
 
@@ -465,7 +378,7 @@ def contextual_reinforce(
     from .combinations import crc
     result = m
     for subset, beta in betas.items():
-        result = crc(result, _simple_mf(m.frame, subset, beta))
+        result = crc(result, DSVector.simple(m.frame, subset, beta))
     return result
 
 
@@ -530,9 +443,9 @@ def contextual_dediscount(
 
     corrective = DSVector.from_sparse(m.frame, {frozenset(): 1.0}, kind=Kind.M)
     for subset, beta in betas.items():
-        corrective = drc(corrective, _negative_simple_mf(m.frame, subset, beta))
+        corrective = drc(corrective, DSVector.negative_simple(m.frame, subset, beta))
 
-    return _disjunctive_decombine(m, corrective)
+    return decombine_drc(m, corrective)
 
 
 # ---------------------------------------------------------------------------
@@ -594,9 +507,9 @@ def contextual_dereinforce(
         m.frame, {frozenset(m.frame): 1.0}, kind=Kind.M
     )
     for subset, beta in betas.items():
-        corrective = crc(corrective, _simple_mf(m.frame, subset, beta))
+        corrective = crc(corrective, DSVector.simple(m.frame, subset, beta))
 
-    return _conjunctive_decombine(m, corrective)
+    return decombine_crc(m, corrective)
 
 
 # ---------------------------------------------------------------------------
