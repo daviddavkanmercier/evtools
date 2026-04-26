@@ -18,29 +18,29 @@ M = DSVector.from_focal(FRAME, {"a": 0.5, "r": 0.5})
 # ---------------------------------------------------------------------------
 
 def test_discount_known_result():
-    # alpha=0.4: αm({a})=0.3, αm({r})=0.3, αm(Ω)=0.4
-    md = discount(M, 0.4)
+    # beta=0.6: βm({a})=0.3, βm({r})=0.3, βm(Ω)=0.4
+    md = discount(M, 0.6)
     assert np.isclose(md[frozenset({"a"})],          0.3)
     assert np.isclose(md[frozenset({"r"})],          0.3)
     assert np.isclose(md[frozenset({"a","h","r"})],  0.4)
     assert np.isclose(sum(md.sparse.values()),        1.0)
 
 
-def test_discount_alpha0_unchanged():
+def test_discount_beta1_unchanged():
     assert np.allclose(discount(M, 0.0).dense, M.dense, atol=1e-10)
 
 
-def test_discount_alpha1_vacuous():
+def test_discount_beta0_vacuous():
     vac = discount(M, 1.0)
     assert np.isclose(vac[frozenset({"a","h","r"})], 1.0)
     assert np.isclose(sum(vac.sparse.values()),       1.0)
 
 
 def test_discount_kind_m():
-    assert discount(M, 0.3).kind == Kind.M
+    assert discount(M, 0.7).kind == Kind.M
 
 
-def test_discount_alpha_out_of_range_raises():
+def test_discount_beta_out_of_range_raises():
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
         discount(M, 1.5)
     with pytest.raises(ValueError, match=r"\[0, 1\]"):
@@ -57,9 +57,8 @@ def test_discount_wrong_kind_raises():
 # ---------------------------------------------------------------------------
 
 def test_contextual_discount_case1_mercier2008():
-    # Case 1 of Mercier (2008): α_a=0.4, α_h=0, α_r=0
-    # β_a=0.6, β_h=1.0, β_r=1.0
-    # αm({a})=0.5, αm({r})=0.3, αm({a,r})=0.2
+    # Case 1 of Mercier (2008): β_a=0.6, β_h=1.0, β_r=1.0
+    # βm({a})=0.5, βm({r})=0.3, βm({a,r})=0.2
     betas = {
         frozenset({"a"}): 0.6,
         frozenset({"h"}): 1.0,
@@ -96,11 +95,11 @@ def test_contextual_discount_kind_m():
 # ---------------------------------------------------------------------------
 
 def test_theta_discount_reduces_to_classical():
-    # Θ = {Ω}, β = 1-α → same as discount(m, alpha)
-    alpha = 0.4
+    # Θ = {Ω}, single β → same as discount(m, beta)
+    beta = 0.6
     omega = frozenset(FRAME)
-    mt = theta_contextual_discount(M, {omega: 1 - alpha})
-    assert np.allclose(mt.dense, discount(M, alpha).dense, atol=1e-10)
+    mt = theta_contextual_discount(M, {omega: beta})
+    assert np.allclose(mt.dense, discount(M, beta).dense, atol=1e-10)
 
 
 def test_theta_discount_reduces_to_contextual():

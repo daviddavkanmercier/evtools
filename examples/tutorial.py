@@ -243,11 +243,11 @@ print(f"{DIM}# Original BBA{R}")
 print(s)
 
 # --- Classical discounting ---
-print(f"\n{DIM}# Classical discounting α=0.4 — source 40% unreliable{R}")
+print(f"\n{DIM}# Classical discounting β=0.6 — source 60% reliable{R}")
 print(discount(s, 0.4))
 
 # --- Contextual discounting ---
-print(f"\n{DIM}# Contextual discounting — unreliable only when airplane (α_a=0.4){R}")
+print(f"\n{DIM}# Contextual discounting — unreliable only when airplane (β_a=0.6){R}")
 betas_cd = {
     frozenset({"a"}): 0.6,
     frozenset({"h"}): 1.0,

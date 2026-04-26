@@ -8,7 +8,7 @@ Available functions
 -------------------
 theta_contextual_discount(m, betas)  — Θ-contextual discounting (general)
 contextual_discount(m, betas)        — Ω-contextual discounting (singletons)
-discount(m, alpha)                   — Classical discounting (single rate)
+discount(m, beta)                    — Classical discounting (single reliability degree)
 contextual_reinforce(m, betas)       — Contextual reinforcement (dual of CD)
 contextual_dediscount(m, betas)      — Contextual de-discounting (inverse of CD)
 contextual_dereinforce(m, betas)     — Contextual de-reinforcement (inverse of CR)
@@ -186,7 +186,7 @@ def theta_contextual_discount(
 
     Examples
     --------
-    Classical discounting with α = 0.4:
+    Classical discounting with β = 0.6 (source 60% reliable):
 
     >>> frame = ["a", "h", "r"]
     >>> m = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
@@ -276,27 +276,28 @@ def contextual_discount(
 # Classical discounting (special case: Θ = {Ω})
 # ---------------------------------------------------------------------------
 
-def discount(m: DSVector, alpha: float) -> DSVector:
+def discount(m: DSVector, beta: float) -> DSVector:
     """
-    Classical discounting of a BBA with a single discount rate α.
+    Classical discounting of a BBA with a single reliability degree β.
 
-    Special case of Θ-contextual discounting with Θ = {Ω} and β = 1−α.
+    Special case of Θ-contextual discounting with Θ = {Ω}.
 
     The corrected BBA satisfies (Shafer 1976, p. 252):
-        αm(A) = (1−α) · m(A)   for all A ⊊ Ω
-        αm(Ω) = (1−α) · m(Ω) + α
+        βm(A) = β · m(A)        for all A ⊊ Ω
+        βm(Ω) = β · m(Ω) + (1−β)
 
-    Interpretation: the source is reliable with degree of belief 1−α. With
-    mass α, the source is irrelevant and is replaced by the vacuous BBA.
+    Interpretation: β is the agent's degree of belief that the source is
+    reliable. With mass 1−β, the source is irrelevant and is replaced by
+    the vacuous BBA.
 
     Parameters
     ----------
     m : DSVector
         The BBA to correct (kind=Kind.M).
-    alpha : float
-        Discount rate α ∈ [0, 1].
-        α = 0: m is unchanged (fully reliable source).
-        α = 1: m is replaced by the vacuous BBA (fully unreliable source).
+    beta : float
+        Reliability degree β ∈ [0, 1].
+        β = 1: m is unchanged (fully reliable source).
+        β = 0: m is replaced by the vacuous BBA (fully unreliable source).
 
     Returns
     -------
@@ -306,7 +307,7 @@ def discount(m: DSVector, alpha: float) -> DSVector:
     Raises
     ------
     ValueError
-        If m is not a BBA, or if alpha is not in [0, 1].
+        If m is not a BBA, or if beta is not in [0, 1].
 
     References
     ----------
@@ -314,9 +315,9 @@ def discount(m: DSVector, alpha: float) -> DSVector:
     Mercier, D., Quost, B., Denoeux, T. (2008). Section 2.5.
     """
     _check_bba(m, "discount")
-    if not (0.0 <= alpha <= 1.0):
-        raise ValueError(f"discount: alpha must be in [0, 1], got {alpha}.")
-    return theta_contextual_discount(m, {frozenset(m.frame): 1.0 - alpha})
+    if not (0.0 <= beta <= 1.0):
+        raise ValueError(f"discount: beta must be in [0, 1], got {beta}.")
+    return theta_contextual_discount(m, {frozenset(m.frame): beta})
 
 
 # ---------------------------------------------------------------------------
