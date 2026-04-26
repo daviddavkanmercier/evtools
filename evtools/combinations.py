@@ -33,6 +33,8 @@ References
 
 from __future__ import annotations
 
+from .constants import ZERO_MASS, MASS_TOL, VALID_TOL, DISPLAY_TOL
+
 from typing import Literal
 import numpy as np
 
@@ -87,7 +89,7 @@ def _combine_sparse(
             a = op(b, c)
             value = mb * mc
             result[a] = result.get(a, 0.0) + value
-    result = {k: v for k, v in result.items() if abs(v) > 1e-15}
+    result = {k: v for k, v in result.items() if abs(v) > ZERO_MASS}
     return DSVector.from_sparse(m1.frame, result, kind=Kind.M)
 
 

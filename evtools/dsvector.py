@@ -33,6 +33,8 @@ v.to_m(), v.to_bel(), v.to_pl(), ...  — convenience shortcuts
 
 from __future__ import annotations
 
+from .constants import ZERO_MASS, MASS_TOL, VALID_TOL, DISPLAY_TOL
+
 from enum import Enum
 from typing import Iterator
 import numpy as np
@@ -251,13 +253,13 @@ class DSVector:
 
         if kind == Kind.M:
             total = sum(sparse.values())
-            if total > 1.0 + 1e-12:
+            if total > 1.0 + MASS_TOL:
                 raise ValueError(
                     f"Total mass {total:.6g} exceeds 1."
                 )
             if complete:
                 remainder = 1.0 - total
-                if remainder > 1e-12:
+                if remainder > MASS_TOL:
                     omega = frozenset(frame)
                     sparse[omega] = sparse.get(omega, 0.0) + remainder
 
@@ -383,9 +385,9 @@ class DSVector:
             raise ValueError(f"simple: beta must be in [0, 1], got {beta}.")
         omega = frozenset(frame)
         sparse: dict[frozenset, float] = {}
-        if beta > 1e-15:
+        if beta > ZERO_MASS:
             sparse[omega] = beta
-        if 1.0 - beta > 1e-15:
+        if 1.0 - beta > ZERO_MASS:
             sparse[subset] = 1.0 - beta
         return cls(frame, sparse, Kind.M)
 
@@ -397,7 +399,7 @@ class DSVector:
         beta: float,
     ) -> "DSVector":
         """
-        Build a negative simple MF θ^β (negative simple mass function).
+        Build a negative simple MF A_β (negative simple mass function).
 
         Focal sets: ∅ with mass β, θ=subset with mass 1−β.
         This is a subnormal BBA (m(∅) > 0 when β > 0).
@@ -427,9 +429,9 @@ class DSVector:
         if not (0.0 <= beta <= 1.0):
             raise ValueError(f"negative_simple: beta must be in [0, 1], got {beta}.")
         sparse: dict[frozenset, float] = {}
-        if beta > 1e-15:
+        if beta > ZERO_MASS:
             sparse[frozenset()] = beta
-        if 1.0 - beta > 1e-15:
+        if 1.0 - beta > ZERO_MASS:
             sparse[subset] = 1.0 - beta
         return cls(frame, sparse, Kind.M)
 
@@ -486,10 +488,10 @@ class DSVector:
         """
         if self._kind != Kind.M:
             return True
-        if any(v < -1e-10 for v in self._sparse.values()):
+        if any(v < -VALID_TOL for v in self._sparse.values()):
             return False
         total = sum(self._sparse.values())
-        return abs(total - 1.0) < 1e-10
+        return abs(total - 1.0) < VALID_TOL
 
     # ------------------------------------------------------------------
     # Conversions
@@ -694,7 +696,7 @@ class DSVector:
         # Footer: total (only meaningful for Kind.M)
         total = sum(self._sparse.values())
         if self._kind == Kind.M:
-            ok = abs(total - 1.0) < 1e-9
+            ok = abs(total - 1.0) < DISPLAY_TOL
             total_color = self._GREEN if ok else self._YELLOW
             lines.append(
                 f"  {D}{'Total':<{col_subset}}  "

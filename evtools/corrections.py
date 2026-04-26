@@ -36,9 +36,9 @@ Summary table (Pichon et al. 2016, Figure 2)
 
 Notation for simple MFs
 ------------------------
-  θ^β   : negative simple MF — focal sets ∅ (mass β) and θ (mass 1−β)
+  A_β   : negative simple MF — focal sets ∅ (mass β) and θ (mass 1−β)
            used in CD, CdD
-  A^β   : positive simple MF — focal sets Ω (mass β) and A (mass 1−β)
+  A^β   : positive simple MF  — focal sets Ω (mass β) and A (mass 1−β)
            used in CR, CdR
 
 References
@@ -52,6 +52,8 @@ References
 """
 
 from __future__ import annotations
+
+from .constants import ZERO_MASS, MASS_TOL, VALID_TOL, DISPLAY_TOL
 
 import numpy as np
 
@@ -83,7 +85,7 @@ def _check_betas(betas: dict[frozenset, float], fn: str,
         If False, require β ∈ [0, 1] (closed interval, default).
     """
     for subset, beta in betas.items():
-        lo_ok = beta > 1e-15 if open_left else beta >= 0.0
+        lo_ok = beta > ZERO_MASS if open_left else beta >= 0.0
         hi_ok = beta <= 1.0
         if not (lo_ok and hi_ok):
             interval = "(0, 1]" if open_left else "[0, 1]"
@@ -148,9 +150,9 @@ def theta_contextual_discount(
     Given a coarsening Θ = {θ₁, ..., θL} (a partition of Ω) and reliability
     degrees β = (β₁, ..., βL) with βℓ ∈ [0,1], the corrected BBA is:
 
-        αm = mS ∪ (∪_{θℓ ∈ Θ} θℓ^{βℓ})
+        αm = mS ∪ (∪_{θℓ ∈ Θ} θℓ_{βℓ})
 
-    where θℓ^{βℓ} is the negative simple MF with focal sets ∅ (mass βℓ)
+    where θℓ_{βℓ} is the negative simple MF with focal sets ∅ (mass βℓ)
     and θℓ (mass 1−βℓ), and ∪ is the TBM disjunctive rule.
 
     Interpretation: βℓ is the agent's degree of belief that the source is
@@ -212,7 +214,7 @@ def theta_contextual_discount(
     _check_betas(betas, "theta_contextual_discount")
     _check_partition(m.frame, betas, "theta_contextual_discount")
 
-    # Build the corrective MF: ∪_{θℓ} θℓ^{βℓ}
+    # Build the corrective MF: ∪_{θℓ} θℓ_{βℓ}
     # Neutral element of DRC: the inconsistent BBA m(∅)=1
     corrective = DSVector.from_sparse(m.frame, {frozenset(): 1.0}, kind=Kind.M)
     for subset, beta in betas.items():
@@ -397,9 +399,9 @@ def contextual_dediscount(
     Inverse of contextual discounting: removes a previously applied CD
     correction. Defined via the disjunctive decombination rule (6∪):
 
-        CdD(mS) = mS 6∪ (∪_{A ∈ A} A^{βA})
+        CdD(mS) = mS 6∪ (∪_{A ∈ A} A_{βA})
 
-    where A^{βA} is the negative simple MF with focal sets ∅ (mass βA)
+    where A_{βA} is the negative simple MF with focal sets ∅ (mass βA)
     and A (mass 1−βA).
 
     Use case: an agent Ag received a source output mS, applied CD with
@@ -581,17 +583,17 @@ def contextual_negate(
         new_sparse: dict[frozenset, float] = {}
         for focal, value in result.sparse.items():
             # Truthful part: mass β stays on focal set B
-            if beta > 1e-15:
+            if beta > ZERO_MASS:
                 new_sparse[focal] = new_sparse.get(focal, 0.0) + beta * value
             # Non-truthful part: mass (1−β) goes to B∩̂A = (B∩A) ∪ (B̄∩Ā)
-            if 1.0 - beta > 1e-15:
+            if 1.0 - beta > ZERO_MASS:
                 b_inter_a = focal & subset
                 bbar_inter_abar = (frozenset(m.frame) - focal) & a_bar
                 equiv_set = b_inter_a | bbar_inter_abar
                 new_sparse[equiv_set] = (
                     new_sparse.get(equiv_set, 0.0) + (1.0 - beta) * value
                 )
-        new_sparse = {k: v for k, v in new_sparse.items() if abs(v) > 1e-15}
+        new_sparse = {k: v for k, v in new_sparse.items() if abs(v) > ZERO_MASS}
         result = DSVector.from_sparse(m.frame, new_sparse, kind=Kind.M)
 
     return result
