@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.6.0.
 
 ## Modules
 
@@ -9,8 +9,10 @@ in the Dempster-Shafer theory / Transferable Belief Model.
 |--------|-------------|
 | `evtools.dsvector` | `DSVector` — unified container for any belief function representation |
 | `evtools.conversions` | Low-level conversions via the Fast Möbius Transform |
-| `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold |
+| `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold, and decombinations |
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
+| `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
+| `evtools.constants` | Numerical tolerance constants |
 
 ---
 
@@ -39,6 +41,7 @@ on demand and cached.
 from evtools.dsvector import DSVector, Kind
 
 # Human-friendly: name focal elements as strings
+# Missing mass is automatically assigned to Ω
 m = DSVector.from_focal(["a", "b", "c"], {"a": 0.3, "b,c": 0.5})
 
 # From a dense numpy array (binary index ordering, Smets 2002)
@@ -52,13 +55,17 @@ m = DSVector.from_sparse(["a", "b", "c"], {
 })
 ```
 
-### Special constructors
+### Simple MF constructors
+
+Simple MFs are the elementary building blocks of correction mechanisms.
 
 ```python
 # Simple MF A^β — focal sets Ω (mass β) and A (mass 1−β)
+# Used in Contextual Reinforcement (CR), CdR, CN
 s = DSVector.simple(["a", "b", "c"], frozenset({"a"}), beta=0.6)
 
-# Negative simple MF θ^β — focal sets ∅ (mass β) and θ (mass 1−β)
+# Negative simple MF A_β — focal sets ∅ (mass β) and A (mass 1−β)
+# Used in Contextual Discounting (CD), CdD
 ns = DSVector.negative_simple(["a", "b", "c"], frozenset({"a"}), beta=0.4)
 ```
 
@@ -83,6 +90,15 @@ m[frozenset({"a"})]          # value for a given subset (0.0 if absent)
 for subset, value in m: ...  # iterate over non-zero focal elements
 ```
 
+### Display
+
+```python
+m.display("ansi")    # colored terminal (default __repr__)
+m.display("plain")   # plain text, no colors
+m.display("html")    # HTML table (Jupyter renders this automatically)
+m.display("latex")   # LaTeX tabular for papers
+```
+
 ---
 
 ## `evtools.combinations`
@@ -91,24 +107,25 @@ Combination rules for aggregating beliefs from multiple sources.
 
 ```python
 from evtools.combinations import crc, dempster, drc, cautious, bold
+from evtools.combinations import decombine_crc, decombine_drc
 
 m12 = crc(m1, m2)        # m1 & m2  — Conjunctive Rule (TBM), distinct reliable sources
 m12 = dempster(m1, m2)   # m1 @ m2  — Dempster's normalized rule
 m12 = drc(m1, m2)        # m1 | m2  — Disjunctive Rule, at least one reliable
-m12 = cautious(m1, m2)   # Cautious rule, nondistinct reliable sources
-m12 = bold(m1, m2)       # Bold disjunctive rule, nondistinct possibly unreliable
+m12 = cautious(m1, m2)   # Cautious rule, nondistinct reliable sources (idempotent)
+m12 = bold(m1, m2)       # Bold disjunctive rule, nondistinct possibly unreliable (idempotent)
 
-# Decombination (inverse operations — result may not be a valid BBA, check .is_valid)
-m1  = decombine_crc(m12, m2)  # m12 6∩ m2 — removes m2 from a conjunctive combination
-m1  = decombine_drc(m12, m2)  # m12 6∪ m2 — removes m2 from a disjunctive combination
+# Decombination — inverse operations (result may not be valid, check .is_valid)
+m1 = decombine_crc(m12, m2)  # m12 6∩ m2 — removes m2 from a conjunctive combination
+m1 = decombine_drc(m12, m2)  # m12 6∪ m2 — removes m2 from a disjunctive combination
 ```
 
 Choice of rule:
 
-|                     | All sources reliable | At least one reliable |
-|---------------------|---------------------|-----------------------|
-| **Distinct sources**    | `crc` / `dempster`  | `drc`                 |
-| **Nondistinct sources** | `cautious`          | `bold`                |
+|                         | All sources reliable   | At least one reliable |
+|-------------------------|------------------------|-----------------------|
+| **Distinct sources**    | `crc` / `dempster`     | `drc`                 |
+| **Nondistinct sources** | `cautious`             | `bold`                |
 
 Both `crc` and `drc` support `method="sparse"` (default) or `method="dense"`.
 
@@ -118,6 +135,10 @@ Both `crc` and `drc` support `method="sparse"` (default) or `method="dense"`.
 
 Correction mechanisms for adjusting a BBA based on knowledge about the
 quality of a source (reliability, truthfulness).
+
+Notation:
+- **A^β** — simple MF: focal sets Ω (mass β) and A (mass 1−β)
+- **A_β** — negative simple MF: focal sets ∅ (mass β) and A (mass 1−β)
 
 ```python
 from evtools.corrections import (
@@ -130,10 +151,12 @@ from evtools.corrections import (
     contextual_negate,
 )
 
-# Classical discounting — source reliable with degree 1-α
-m_disc = discount(m, alpha=0.4)
+# Classical discounting — source reliable with degree β ∈ [0,1]
+# β=1: unchanged; β=0: vacuous BBA
+m_disc = discount(m, beta=0.6)
 
-# Contextual discounting — reliability depends on each singleton context
+# Contextual discounting (CD) — reliability per singleton context
+# Uses negative simple MFs A_β and the DRC
 betas = {frozenset({"a"}): 0.6, frozenset({"h"}): 1.0, frozenset({"r"}): 1.0}
 m_cd = contextual_discount(m, betas)
 
@@ -141,22 +164,22 @@ m_cd = contextual_discount(m, betas)
 betas_theta = {frozenset({"a"}): 0.4, frozenset({"h","r"}): 0.9}
 m_theta = theta_contextual_discount(m, betas_theta)
 
-# Contextual reinforcement — dual of discounting (uses CRC instead of DRC)
+# Contextual Reinforcement (CR) — dual of CD, uses simple MFs A^β and the CRC
 m_cr = contextual_reinforce(m, betas)
 
-# Inverse operations (result may not be a valid BBA — check .is_valid)
-m_cdd = contextual_dediscount(m_cd, betas)   # reverses contextual_discount
-m_cdr = contextual_dereinforce(m_cr, betas)  # reverses contextual_reinforce
+# Inverse operations (result may not be valid — check .is_valid)
+m_cdd = contextual_dediscount(m_cd, betas)    # reverses CD
+m_cdr = contextual_dereinforce(m_cr, betas)   # reverses CR
 
-# Contextual negating — source lies for some contexts
+# Contextual Negating (CN) — source non-truthful with probability 1−β
 m_cn = contextual_negate(m, {frozenset({"a"}): 0.7})
 ```
 
 Hierarchy of discounting:
 
 ```
-discount(m, α)
-  └── theta_contextual_discount(m, {Ω: 1-α})
+discount(m, β)
+  └── theta_contextual_discount(m, {Ω: β})
 
 contextual_discount(m, β)
   └── theta_contextual_discount(m, β)   [Θ = singletons]
@@ -166,10 +189,26 @@ theta_contextual_discount(m, β)         [general Θ partition]
 
 ---
 
+## `evtools.display`
+
+Four output formats, all adapting the column header to the kind (`m`, `bel`, `pl`, ...).
+In Jupyter notebooks, `DSVector._repr_html_()` is called automatically.
+
+```python
+from evtools.display import repr_plain, repr_html, repr_latex
+
+print(repr_plain(m))   # plain text, no colors
+print(repr_latex(m))   # LaTeX tabular for papers
+m.display("ansi")      # colored terminal (default)
+m.display("html")      # HTML table
+```
+
+---
+
 ## `evtools.conversions`
 
 Low-level conversion functions operating on plain numpy arrays (length `2^n`),
-using the Fast Möbius Transform. Every conversion is available as
+using the Fast Möbius Transform (Smets 2002). Every conversion is available as
 `<source>to<target>`, e.g. `mtob`, `pltom`, `qtow`, `beltov`, etc.
 
 ```python
@@ -209,10 +248,9 @@ pytest tests/
 ## References
 
 - P. Smets. *The application of the matrix calculus to belief functions*, International Journal of Approximate Reasoning, 31(1–2):1–30, 2002.
-- T. Denœux. *Conjunctive and disjunctive combination of belief functions induced
-by non-distinct bodies of evidence*, Artificial Intelligence, 172:234–264, 2008.
-- D. Mercier, B. Quost, T. Denœux, *Refined modeling of sensor reliability in the belief function framework using contextual discounting*, Information Fusion, Vol. 9, Issue 2, pp 246-258, April 2008.
-- F. Pichon, D. Mercier, É. Lefèvre, F. Delmotte, *Proposition and learning of some belief function contextual correction mechanisms*, International Journal of Approximate Reasoning, Vol. 72, pp 4-42, May 2016.
+- T. Denœux. *Conjunctive and disjunctive combination of belief functions induced by non-distinct bodies of evidence*, Artificial Intelligence, 172:234–264, 2008.
+- D. Mercier, B. Quost, T. Denœux. *Refined modeling of sensor reliability in the belief function framework using contextual discounting*, Information Fusion, Vol. 9, Issue 2, pp 246-258, April 2008.
+- F. Pichon, D. Mercier, É. Lefèvre, F. Delmotte. *Proposition and learning of some belief function contextual correction mechanisms*, International Journal of Approximate Reasoning, Vol. 72, pp 4-42, May 2016.
 
 ## License
 
