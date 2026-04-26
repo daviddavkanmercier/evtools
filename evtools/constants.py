@@ -21,6 +21,6 @@ MASS_TOL: float = 1e-12
 VALID_TOL: float = 1e-10
 
 # Tolerance for display.
-# Used in __repr__ to decide whether to color the total in green (valid)
-# or yellow (potentially invalid).
+# Used in display.py to decide whether the total is shown as valid (green)
+# or potentially invalid (orange).
 DISPLAY_TOL: float = 1e-9

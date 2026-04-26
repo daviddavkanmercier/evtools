@@ -2,22 +2,51 @@
 evtools — Tutorial
 ==================
 
-This tutorial walks through the main features of evtools, using a simple
-target recognition example: a sensor classifies aerial targets as
+This tutorial walks through all main features of evtools, using a running
+example from belief function theory: a sensor classifies aerial targets as
 airplane (a), helicopter (h), or rocket (r).
 
-Reference:
-    D. Mercier, B. Quost, T. Denoeux. Refined modeling of sensor reliability
-    in the belief function framework using contextual discounting.
-    Information Fusion, 9(2), 246-258, 2008.
+Sections
+--------
+1.  Building a BBA        — from_focal, from_dense, from_sparse
+2.  Accessing values      — sparse, dense, iteration, is_valid
+3.  Subnormal BBA         — m(∅) > 0
+4.  Conversions           — bel, pl, b, q, v, w
+5.  Round-trip            — consistency checks
+6.  Low-level API         — numpy arrays via conversions module
+7.  Combination rules     — CRC, Dempster, DRC (distinct sources)
+8.  DRC                   — disjunctive rule
+9.  Cautious & Bold       — nondistinct sources
+10. Correction mechanisms — discount, contextual_discount, CR, CdD, CN
+11. Simple MFs            — DSVector.simple, DSVector.negative_simple
+    Decombination         — decombine_crc, decombine_drc
+12. Display formats       — ansi, plain, html, latex
+
+References
+----------
+- P. Smets. The application of the matrix calculus to belief functions.
+  IJAR, 31(1-2):1-30, 2002.
+- T. Denœux. Conjunctive and disjunctive combination of belief functions
+  induced by nondistinct bodies of evidence. AI, 172:234-264, 2008.
+- D. Mercier, B. Quost, T. Denœux. Refined modeling of sensor reliability
+  in the belief function framework using contextual discounting.
+  Information Fusion, 9(2):246-258, 2008.
+- F. Pichon, D. Mercier, É. Lefèvre, F. Delmotte. Proposition and learning
+  of some belief function contextual correction mechanisms.
+  IJAR, 72:4-42, 2016.
 """
 
 import numpy as np
 from evtools.dsvector import DSVector, Kind
 
-B  = "\033[1m"
-R  = "\033[0m"
+B   = "\033[1m"
+R   = "\033[0m"
 DIM = "\033[2m"
+GREEN = "\033[32m"
+RED   = "\033[31m"
+
+frame = ["a", "h", "r"]  # airplane, helicopter, rocket
+
 
 def section(title):
     print(f"\n{B}{'─' * 60}{R}")
@@ -25,28 +54,28 @@ def section(title):
     print(f"{B}{'─' * 60}{R}\n")
 
 
-frame = ["a", "h", "r"]  # airplane, helicopter, rocket
-
 # ---------------------------------------------------------------------------
-# 1. Building a mass function
+# 1. Building a BBA
 # ---------------------------------------------------------------------------
+# A Basic Belief Assignment (BBA) is a function m: 2^Ω → [0,1] with
+# Σ m(A) = 1. Three constructors are available.
 
-section("1. Building a mass function")
+section("1. Building a BBA")
 
-# A sensor hesitates between airplane and rocket
-# Missing mass (0.0) is automatically assigned to Ω = {a, h, r}
+# from_focal: human-friendly string keys.
+# Missing mass is automatically assigned to Ω = {a, h, r}.
 print(f"{DIM}# from_focal — human-friendly string keys{R}")
 m = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
 print(m)
 
-# From a dense numpy array
-# Index order: ∅, {a}, {h}, {a,h}, {r}, {a,r}, {h,r}, {a,h,r}
-print(f"\n{DIM}# from_dense — numpy array{R}")
+# from_dense: numpy array in binary index order (Smets 2002).
+# For frame=[a,h,r]: index 0=∅, 1={a}, 2={h}, 3={a,h}, 4={r}, ...
+print(f"\n{DIM}# from_dense — numpy array (binary index order){R}")
 array = np.array([0.0, 0.5, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0])
 m2 = DSVector.from_dense(frame, array)
 print(m2)
 
-# From a sparse dict of frozensets
+# from_sparse: dict of frozensets.
 print(f"\n{DIM}# from_sparse — dict of frozensets{R}")
 m3 = DSVector.from_sparse(frame, {
     frozenset({"a"}): 0.5,
@@ -61,9 +90,10 @@ print(m3)
 section("2. Accessing values")
 
 print(f"m[{{a}}]    = {m[frozenset({'a'})]}")
-print(f"m[{{h}}]    = {m[frozenset({'h'})]}  {DIM}(not a focal element){R}")
+print(f"m[{{h}}]    = {m[frozenset({'h'})]}   {DIM}← not a focal element{R}")
 print(f"n_focal   = {m.n_focal}")
 print(f"dense     = {m.dense}")
+print(f"is_valid  = {m.is_valid}")
 
 print(f"\n{DIM}# Iterating over focal elements:{R}")
 for subset, value in m:
@@ -71,21 +101,21 @@ for subset, value in m:
     print(f"  m({label}) = {value}")
 
 # ---------------------------------------------------------------------------
-# 3. Subnormal BBA  (m(∅) > 0)
+# 3. Subnormal BBA  —  m(∅) > 0
 # ---------------------------------------------------------------------------
+# In the TBM, m(∅) > 0 is allowed and represents internal conflict.
 
 section("3. Subnormal BBA  —  m(∅) > 0")
 
 m_sub = DSVector.from_focal(
-    frame,
-    {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2},
-    complete=False,
+    frame, {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2}, complete=False
 )
 print(m_sub)
 
 # ---------------------------------------------------------------------------
 # 4. Conversions
 # ---------------------------------------------------------------------------
+# All standard representations are available via .to(Kind) or shortcuts.
 
 section("4. Conversions")
 
@@ -111,18 +141,20 @@ section("5. Round-trip consistency")
 for kind in [Kind.BEL, Kind.PL, Kind.B, Kind.Q]:
     back = m.to(kind).to(Kind.M)
     ok = np.allclose(back.dense, m.dense, atol=1e-10)
-    status = f"\033[32m✓ OK\033[0m" if ok else f"\033[31m✗ MISMATCH\033[0m"
+    status = f"{GREEN}✓ OK{R}" if ok else f"{RED}✗ MISMATCH{R}"
     print(f"  m → {kind.value:>3} → m   {status}")
 
 for kind in [Kind.V, Kind.W]:
     back = m_sub.to(kind).to(Kind.M)
     ok = np.allclose(back.dense, m_sub.dense, atol=1e-10)
-    status = f"\033[32m✓ OK\033[0m" if ok else f"\033[31m✗ MISMATCH\033[0m"
+    status = f"{GREEN}✓ OK{R}" if ok else f"{RED}✗ MISMATCH{R}"
     print(f"  m_sub → {kind.value} → m   {status}")
 
 # ---------------------------------------------------------------------------
-# 6. Low-level conversions API
+# 6. Low-level conversions API  (numpy arrays)
 # ---------------------------------------------------------------------------
+# All conversions are also available as standalone functions on numpy arrays,
+# using the Fast Möbius Transform (Smets 2002, Section 3).
 
 section("6. Low-level conversions API  (numpy arrays)")
 
@@ -136,98 +168,78 @@ print(f"b   : {mtob(m_array)}")
 # ---------------------------------------------------------------------------
 # 7. Combination rules
 # ---------------------------------------------------------------------------
+# Five combination rules are available. Choice depends on source properties:
+#
+#   | | All sources reliable | At least one reliable |
+#   |---|---|---|
+#   | Distinct sources    | crc / dempster | drc    |
+#   | Nondistinct sources | cautious       | bold   |
 
 section("7. Combination rules")
 
-from evtools.combinations import crc, drc
+from evtools.combinations import crc, dempster, drc, cautious, bold
 
-# Two sensors observing the same target
-# Sensor 1: hesitates between airplane and rocket
 s1 = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
-
-# Sensor 2: hesitates between helicopter and rocket, with some ignorance
 s2 = DSVector.from_focal(frame, {"h": 0.3, "r": 0.4, "a,h,r": 0.3})
 
 print(f"{DIM}# Sensor 1{R}")
 print(s1)
-
 print(f"\n{DIM}# Sensor 2{R}")
 print(s2)
 
-# CRC — sources are distinct and reliable
-print(f"\n{DIM}# CRC (sparse) — m1 & m2{R}")
-m12 = crc(s1, s2)
-print(m12)
+print(f"\n{DIM}# CRC — distinct, both reliable  (s1 & s2){R}")
+m12_crc = s1 & s2
+print(m12_crc)
+print(f"  Conflict m(∅) = {m12_crc[frozenset()]:.4f}")
 
-print(f"\n{DIM}# CRC (dense / FMT) — same result{R}")
-m12_dense = crc(s1, s2, method="dense")
-print(m12_dense)
+print(f"\n{DIM}# Dempster's rule — normalized CRC  (s1 @ s2){R}")
+print(s1 @ s2)
 
-print(f"\n{DIM}# Operator shortcut: s1 & s2{R}")
-print(s1 & s2)
-
-# Verify commutativity
 ok = np.allclose((s1 & s2).dense, (s2 & s1).dense, atol=1e-10)
-GREEN = "\033[32m"
-print(f"\n  Commutativity s1 & s2 == s2 & s1 :  {GREEN}✓ OK{R}" if ok else "  ✗ MISMATCH")
+print(f"\n  Commutativity s1 & s2 == s2 & s1 :  {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
 
-# Conflict: mass on ∅ indicates contradiction between sources
-conflict = m12[frozenset()]
-print(f"  Conflict m(∅) = {conflict:.4f}")
+# ---------------------------------------------------------------------------
+# 8. Disjunctive Rule of Combination (DRC)
+# ---------------------------------------------------------------------------
 
-# Dempster's rule — normalized CRC
-print(f"\n{DIM}# Dempster's rule (normalized CRC) — s1 @ s2{R}")
-m12_dempster = s1 @ s2
-print(m12_dempster)
-print(f"  {DIM}(conflict absorbed, m(∅) = 0){R}")
+section("8. DRC — at least one source reliable  (s1 | s2)")
 
-# DRC
-section("8. Disjunctive Rule of Combination (DRC)")
-
-print(f"{DIM}# DRC — at least one source is reliable, we don't know which{R}")
-print(f"{DIM}# Result is less committed (larger focal elements){R}\n")
-m12_drc = drc(s1, s2)
-print(f"{DIM}# DRC (sparse) — m1 | m2{R}")
-print(m12_drc)
-
-print(f"\n{DIM}# Operator shortcut: s1 | s2{R}")
 print(s1 | s2)
+
+# ---------------------------------------------------------------------------
+# 9. Cautious and Bold rules (nondistinct sources)
+# ---------------------------------------------------------------------------
 
 section("9. Cautious and Bold rules (nondistinct sources)")
 
-from evtools.combinations import cautious, bold
-
-# Cautious: nondogmatic BBAs (m(Ω) > 0)
+# Cautious: nondogmatic BBAs (m(Ω) > 0), commutative, associative, idempotent
 c1 = DSVector.from_focal(frame, {"a": 0.3, "h": 0.2, "a,h,r": 0.5})
 c2 = DSVector.from_focal(frame, {"a": 0.4, "r": 0.1, "a,h,r": 0.5})
 
-print(f"{DIM}# Cautious rule — sources reliable but possibly overlapping{R}")
-print(f"{DIM}# Commutative, associative, idempotent{R}\n")
-print(f"{DIM}# Source 1{R}")
-print(c1)
-print(f"\n{DIM}# Source 2{R}")
-print(c2)
-print(f"\n{DIM}# Cautious combination{R}")
+print(f"{DIM}# Cautious combination — sources reliable but possibly overlapping{R}\n")
 print(cautious(c1, c2))
-
-# Idempotence: combining with itself leaves unchanged
 ok = np.allclose(cautious(c1, c1).dense, c1.dense, atol=1e-10)
-GREEN = "\033[32m"
-R2 = "\033[0m"
-print(f"\n  Idempotence c1 ∧ c1 == c1 :  {GREEN}✓ OK{R2}" if ok else "  ✗ MISMATCH")
+print(f"\n  Idempotence c1 ∧ c1 == c1 :  {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
 
-# Bold: subnormal BBAs (m(∅) > 0)
+# Bold: subnormal BBAs (m(∅) > 0), commutative, associative, idempotent
 b1 = DSVector.from_focal(frame, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
 b2 = DSVector.from_focal(frame, {"": 0.2, "r": 0.3, "a,h,r": 0.5}, complete=False)
 
-print(f"\n{DIM}# Bold disjunctive rule — sources possibly overlapping, ≥1 reliable{R}")
-print(f"{DIM}# Requires subnormal BBAs (m(∅) > 0){R}\n")
+print(f"\n{DIM}# Bold disjunctive rule — sources possibly overlapping, ≥1 reliable{R}\n")
 print(bold(b1, b2))
-
 
 # ---------------------------------------------------------------------------
 # 10. Correction mechanisms
 # ---------------------------------------------------------------------------
+# Corrections adjust a BBA based on knowledge about the source quality.
+#
+#   discount(m, β)                  — classical (single reliability β)
+#   contextual_discount(m, betas)   — Ω-contextual (per singleton)
+#   theta_contextual_discount(m, β) — Θ-contextual (per partition element)
+#   contextual_reinforce(m, betas)  — dual of CD (uses CRC)
+#   contextual_dediscount(m, betas) — inverse of CD
+#   contextual_dereinforce(m,betas) — inverse of CR
+#   contextual_negate(m, betas)     — source lies contextually
 
 section("10. Correction mechanisms")
 
@@ -237,86 +249,120 @@ from evtools.corrections import (
     contextual_negate,
 )
 
-# Sensor hesitates between airplane and rocket
 s = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
 print(f"{DIM}# Original BBA{R}")
 print(s)
 
-# --- Classical discounting ---
+# Classical discounting: β=0.6, source 60% reliable
 print(f"\n{DIM}# Classical discounting β=0.6 — source 60% reliable{R}")
-print(discount(s, 0.4))
+print(discount(s, beta=0.6))
 
-# --- Contextual discounting ---
-print(f"\n{DIM}# Contextual discounting — unreliable only when airplane (β_a=0.6){R}")
-betas_cd = {
-    frozenset({"a"}): 0.6,
-    frozenset({"h"}): 1.0,
-    frozenset({"r"}): 1.0,
-}
+# Contextual discounting: unreliable only when airplane (β_a=0.6)
+# Example 1, Case 1 of Mercier et al. (2008)
+print(f"\n{DIM}# Contextual discounting β_a=0.6, β_h=β_r=1.0{R}")
+betas_cd = {frozenset({"a"}): 0.6, frozenset({"h"}): 1.0, frozenset({"r"}): 1.0}
 mcd = contextual_discount(s, betas_cd)
 print(mcd)
 
-# --- Θ-contextual discounting ---
-print(f"\n{DIM}# Θ-contextual discounting — Θ={{a}},{{h,r}}{R}")
-betas_theta = {frozenset({"a"}): 0.4, frozenset({"h","r"}): 0.9}
-print(theta_contextual_discount(s, betas_theta))
+# Θ-contextual discounting: coarser partition Θ = {{a}, {h,r}}
+print(f"\n{DIM}# Θ-contextual discounting — Θ={{{{a}}}}, {{{{h,r}}}}{R}")
+print(theta_contextual_discount(s, {frozenset({"a"}): 0.4, frozenset({"h","r"}): 0.9}))
 
-# --- Contextual reinforcement ---
-print(f"\n{DIM}# Contextual reinforcement — dual of discounting{R}")
-betas_cr = {frozenset({"a"}): 0.6, frozenset({"h"}): 1.0, frozenset({"r"}): 1.0}
-print(contextual_reinforce(s, betas_cr))
+# Contextual reinforcement (dual of CD)
+print(f"\n{DIM}# Contextual reinforcement — dual of CD{R}")
+print(contextual_reinforce(s, betas_cd))
 
-# --- CdD: inverse of CD ---
-print(f"\n{DIM}# Contextual de-discounting — reverses the CD above{R}")
+# CdD: inverse of CD
+print(f"\n{DIM}# Contextual de-discounting — reverses CD{R}")
 mdd = contextual_dediscount(mcd, betas_cd)
 print(mdd)
 ok = np.allclose(mdd.dense, s.dense, atol=1e-6)
 print(f"  Recovers original: {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
 
-# --- CN: contextual negating ---
-print(f"\n{DIM}# Contextual negating — source lies for some contexts{R}")
+# Contextual negating
+print(f"\n{DIM}# Contextual negating β_a=0.7 — source 70% truthful for airplane{R}")
 print(contextual_negate(s, {frozenset({"a"}): 0.7}))
 
-# --- is_valid ---
-print(f"\n{DIM}# is_valid — useful after decombination operations{R}")
-print(f"  Original BBA is_valid : {s.is_valid}")
-print(f"  Discounted   is_valid : {discount(s, 0.4).is_valid}")
+print(f"\n{DIM}# is_valid — useful after inverse operations{R}")
+print(f"  s.is_valid         = {s.is_valid}")
+print(f"  discount(s,.6).is_valid = {discount(s, 0.6).is_valid}")
 
 # ---------------------------------------------------------------------------
 # 11. Simple MFs and decombination
 # ---------------------------------------------------------------------------
+# Simple MFs are the building blocks of correction mechanisms.
+#   A^β  (DSVector.simple)          — focal sets Ω (mass β) and A (mass 1−β)
+#   A_β  (DSVector.negative_simple) — focal sets ∅ (mass β) and A (mass 1−β)
 
 section("11. Simple MFs and decombination")
 
-from evtools.combinations import decombine_crc, decombine_drc
+print(f"{DIM}# Simple MF A^β — focal sets Ω and A (used in CR, CdR, CN){R}")
+s_simple = DSVector.simple(frame, frozenset({"a"}), beta=0.6)
+print(s_simple)
 
-# --- DSVector.simple and DSVector.negative_simple ---
-print(f"{DIM}# Simple MF A^β — focal sets Ω and A{R}")
-s = DSVector.simple(frame, frozenset({"a"}), beta=0.6)
-print(s)
-
-print(f"\n{DIM}# Negative simple MF θ^β — focal sets ∅ and θ{R}")
+print(f"\n{DIM}# Negative simple MF A_β — focal sets ∅ and A (used in CD, CdD){R}")
 ns = DSVector.negative_simple(frame, frozenset({"a"}), beta=0.4)
 print(ns)
 
-# --- decombine_crc ---
 print(f"\n{DIM}# decombine_crc: m1 6∩ m2 — removes m2 from a conjunctive combination{R}")
+from evtools.combinations import decombine_crc, decombine_drc
+
 m1 = DSVector.from_focal(frame, {"a": 0.4, "a,h,r": 0.6})
 m2 = DSVector.from_focal(frame, {"h": 0.3, "a,h,r": 0.7})
-from evtools.combinations import crc
 m12 = crc(m1, m2)
-m1_recovered = decombine_crc(m12, m2)
-ok = m1_recovered.is_valid and np.allclose(m1_recovered.dense, m1.dense, atol=1e-6)
-print(f"  crc(m1, m2) then decombine_crc(m12, m2) recovers m1: {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
-print(m1_recovered)
+m1_rec = decombine_crc(m12, m2)
+ok = m1_rec.is_valid and np.allclose(m1_rec.dense, m1.dense, atol=1e-6)
+print(m1_rec)
+print(f"  Recovers m1: {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
 
-# --- decombine_drc ---
 print(f"\n{DIM}# decombine_drc: m1 6∪ m2 — removes m2 from a disjunctive combination{R}")
 m1_sub = DSVector.from_focal(frame, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
 m2_sub = DSVector.from_focal(frame, {"": 0.2, "h": 0.3, "a,h,r": 0.5}, complete=False)
-from evtools.combinations import drc
 m12_d = drc(m1_sub, m2_sub)
-m1_recovered_d = decombine_drc(m12_d, m2_sub)
-ok_d = m1_recovered_d.is_valid and np.allclose(m1_recovered_d.dense, m1_sub.dense, atol=1e-6)
-print(f"  drc(m1, m2) then decombine_drc(m12, m2) recovers m1: {GREEN}✓ OK{R}" if ok_d else f"  {RED}✗ MISMATCH{R}")
-print(m1_recovered_d)
+m1_rec_d = decombine_drc(m12_d, m2_sub)
+ok_d = m1_rec_d.is_valid and np.allclose(m1_rec_d.dense, m1_sub.dense, atol=1e-6)
+print(m1_rec_d)
+print(f"  Recovers m1_sub: {GREEN}✓ OK{R}" if ok_d else f"  {RED}✗ MISMATCH{R}")
+
+# ---------------------------------------------------------------------------
+# 12. Display formats
+# ---------------------------------------------------------------------------
+# Four output formats are available via the display module.
+# The column header adapts to the kind (m, bel, pl, b, q, v, w).
+
+section("12. Display formats")
+
+from evtools.display import repr_plain, repr_html, repr_latex
+
+m = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
+
+# ANSI (default __repr__)
+print(f"{DIM}# repr_ansi — colored terminal (default){R}\n")
+print(m)
+
+# Plain text
+print(f"\n{DIM}# repr_plain — no colors, for logs and files{R}\n")
+print(repr_plain(m))
+
+# Column header adapts to kind
+print(f"\n{DIM}# Column header adapts to the kind{R}")
+for kind_fn, label in [("to_bel","Belief"), ("to_pl","Plausibility"), ("to_q","Implicability")]:
+    v = getattr(m, kind_fn)()
+    print(f"\n{DIM}# {label} function — header shows '{v.kind.value}'{R}")
+    print(repr_plain(v))
+
+# LaTeX
+print(f"\n{DIM}# repr_latex — ready to paste in a LaTeX paper{R}\n")
+print(repr_latex(m))
+
+# display() method
+print(f"\n{DIM}# display(fmt) — explicit format selection{R}")
+print(f"  Available: ansi, plain, html, latex\n")
+print(m.display("plain"))
+
+# Jupyter auto-display via _repr_html_
+print(f"\n{DIM}# In Jupyter: DSVector renders as HTML table automatically{R}")
+print(f"{DIM}# via _repr_html_() — no extra call needed{R}")
+print(f"  HTML preview (first 3 lines):")
+for line in repr_html(m).split("\n")[:3]:
+    print(f"    {line}")

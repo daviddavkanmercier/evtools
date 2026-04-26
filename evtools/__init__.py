@@ -22,6 +22,16 @@ evtools.corrections
     Correction mechanisms: discounting, reinforcement, negating and
     their contextual and inverse variants.
 
+evtools.display
+    Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
+    DSVector.__repr__ and _repr_html_ delegate here.
+
+evtools.constants
+    Numerical tolerance constants used throughout the library.
+
+: discounting, reinforcement, negating and
+    their contextual and inverse variants.
+
 Usage
 -----
     from evtools.dsvector import DSVector, Kind
@@ -35,7 +45,8 @@ Usage
 from . import conversions
 from . import combinations
 from . import corrections
+from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.5.0"
-__all__ = ["conversions", "combinations", "corrections", "DSVector", "Kind"]
+__version__ = "0.6.0"
+__all__ = ["conversions", "combinations", "corrections", "display", "DSVector", "Kind"]
