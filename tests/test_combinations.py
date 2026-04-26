@@ -8,21 +8,22 @@ from evtools.dsvector import DSVector, Kind
 from evtools.combinations import crc
 
 
-FRAME2 = ["a", "b"]
-FRAME3 = ["a", "b", "c"]
+FRAME_AB = ["a", "b"]
+FRAME_ABC = ["a", "b", "c"]
+FRAME_AHR = ["a", "h", "r"]
 
 # m1: m({a})=0.3, m({a,b})=0.7
-M1 = DSVector.from_focal(FRAME2, {"a": 0.3, "a,b": 0.7})
+M1 = DSVector.from_focal(FRAME_AB, {"a": 0.3, "a,b": 0.7})
 
 # m2: m({a})=0.5, m({b})=0.3, m({a,b})=0.2
-M2 = DSVector.from_focal(FRAME2, {"a": 0.5, "b": 0.3, "a,b": 0.2})
+M2 = DSVector.from_focal(FRAME_AB, {"a": 0.5, "b": 0.3, "a,b": 0.2})
 
 # Vacuous BBA
-VAC = DSVector.from_focal(FRAME2, {})  # all mass on Ω
+VAC = DSVector.from_focal(FRAME_AB, {})  # all mass on Ω
 
 # Categorical BBA: m({a}) = 1
-CAT_A = DSVector.from_focal(FRAME2, {"a": 1.0})
-CAT_B = DSVector.from_focal(FRAME2, {"b": 1.0})
+CAT_A = DSVector.from_focal(FRAME_AB, {"a": 1.0})
+CAT_B = DSVector.from_focal(FRAME_AB, {"b": 1.0})
 
 
 # ---------------------------------------------------------------------------
@@ -52,8 +53,8 @@ def test_crc_dense_matches_sparse():
 
 
 def test_crc_sparse_matches_dense_3atom():
-    m1 = DSVector.from_focal(FRAME3, {"a": 0.3, "b,c": 0.4, "a,b,c": 0.3})
-    m2 = DSVector.from_focal(FRAME3, {"b": 0.2, "a,b": 0.5, "a,b,c": 0.3})
+    m1 = DSVector.from_focal(FRAME_ABC, {"a": 0.3, "b,c": 0.4, "a,b,c": 0.3})
+    m2 = DSVector.from_focal(FRAME_ABC, {"b": 0.2, "a,b": 0.5, "a,b,c": 0.3})
     m12_s = crc(m1, m2, method="sparse")
     m12_d = crc(m1, m2, method="dense")
     assert np.allclose(m12_s.dense, m12_d.dense, atol=1e-10)
@@ -68,7 +69,7 @@ def test_crc_commutativity():
 
 
 def test_crc_associativity():
-    m3 = DSVector.from_focal(FRAME2, {"b": 0.4, "a,b": 0.6})
+    m3 = DSVector.from_focal(FRAME_AB, {"b": 0.4, "a,b": 0.6})
     lhs = crc(crc(M1, M2), m3)
     rhs = crc(M1, crc(M2, m3))
     assert np.allclose(lhs.dense, rhs.dense, atol=1e-10)
@@ -123,7 +124,7 @@ def test_crc_wrong_kind_raises():
 
 
 def test_crc_mismatched_frames_raises():
-    m_other = DSVector.from_focal(FRAME3, {"a": 0.5, "a,b,c": 0.5})
+    m_other = DSVector.from_focal(FRAME_ABC, {"a": 0.5, "a,b,c": 0.5})
     with pytest.raises(ValueError, match="frames"):
         crc(M1, m_other)
 
@@ -209,7 +210,7 @@ def test_drc_commutativity():
 
 
 def test_drc_associativity():
-    m3 = DSVector.from_focal(FRAME2, {"b": 0.4, "a,b": 0.6})
+    m3 = DSVector.from_focal(FRAME_AB, {"b": 0.4, "a,b": 0.6})
     assert np.allclose(
         drc(drc(M1, M2), m3).dense,
         drc(M1, drc(M2, m3)).dense,
@@ -232,8 +233,8 @@ def test_drc_result_sums_to_one():
 from evtools.combinations import cautious
 
 # Nondogmatic BBAs (m(Ω) > 0)
-M1_ND = DSVector.from_focal(FRAME2, {"a": 0.3, "b": 0.3, "a,b": 0.4})
-M2_ND = DSVector.from_focal(FRAME2, {"a": 0.4, "b": 0.2, "a,b": 0.4})
+M1_ND = DSVector.from_focal(FRAME_AB, {"a": 0.3, "b": 0.3, "a,b": 0.4})
+M2_ND = DSVector.from_focal(FRAME_AB, {"a": 0.4, "b": 0.2, "a,b": 0.4})
 
 
 def test_cautious_commutativity():
@@ -245,7 +246,7 @@ def test_cautious_idempotent():
 
 
 def test_cautious_associativity():
-    M3_ND = DSVector.from_focal(FRAME2, {"a": 0.2, "b": 0.5, "a,b": 0.3})
+    M3_ND = DSVector.from_focal(FRAME_AB, {"a": 0.2, "b": 0.5, "a,b": 0.3})
     assert np.allclose(
         cautious(cautious(M1_ND, M2_ND), M3_ND).dense,
         cautious(M1_ND, cautious(M2_ND, M3_ND)).dense,
@@ -254,7 +255,7 @@ def test_cautious_associativity():
 
 
 def test_cautious_dogmatic_raises():
-    m_dog = DSVector.from_focal(FRAME2, {"a": 0.6, "b": 0.4}, complete=False)
+    m_dog = DSVector.from_focal(FRAME_AB, {"a": 0.6, "b": 0.4}, complete=False)
     with pytest.raises(ValueError, match="dogmatic"):
         cautious(m_dog, M2_ND)
 
@@ -270,8 +271,8 @@ def test_cautious_result_kind_m():
 from evtools.combinations import bold
 
 # Subnormal BBAs (m(∅) > 0)
-M1_SUB = DSVector.from_focal(FRAME2, {"": 0.1, "a": 0.4, "a,b": 0.5}, complete=False)
-M2_SUB = DSVector.from_focal(FRAME2, {"": 0.2, "b": 0.3, "a,b": 0.5}, complete=False)
+M1_SUB = DSVector.from_focal(FRAME_AB, {"": 0.1, "a": 0.4, "a,b": 0.5}, complete=False)
+M2_SUB = DSVector.from_focal(FRAME_AB, {"": 0.2, "b": 0.3, "a,b": 0.5}, complete=False)
 
 
 def test_bold_commutativity():
@@ -301,11 +302,10 @@ def test_bold_result_sums_to_one():
 
 from evtools.combinations import decombine_crc, decombine_drc
 
-FRAME3 = ["a", "h", "r"]
-M1_C = DSVector.from_focal(FRAME3, {"a": 0.4, "a,h,r": 0.6})
-M2_C = DSVector.from_focal(FRAME3, {"h": 0.3, "a,h,r": 0.7})
-M1_D = DSVector.from_focal(FRAME3, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
-M2_D = DSVector.from_focal(FRAME3, {"": 0.2, "h": 0.3, "a,h,r": 0.5}, complete=False)
+M1_C = DSVector.from_focal(FRAME_AHR, {"a": 0.4, "a,h,r": 0.6})
+M2_C = DSVector.from_focal(FRAME_AHR, {"h": 0.3, "a,h,r": 0.7})
+M1_D = DSVector.from_focal(FRAME_AHR, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
+M2_D = DSVector.from_focal(FRAME_AHR, {"": 0.2, "h": 0.3, "a,h,r": 0.5}, complete=False)
 
 
 def test_decombine_crc_inverts_crc():
@@ -325,15 +325,15 @@ def test_decombine_drc_inverts_drc():
 
 
 def test_decombine_crc_dogmatic_raises():
-    m_dog = DSVector.from_focal(FRAME3, {"a": 0.5, "h": 0.5}, complete=False)
-    m12 = DSVector.from_focal(FRAME3, {"a": 0.3, "a,h,r": 0.7})
+    m_dog = DSVector.from_focal(FRAME_AHR, {"a": 0.5, "h": 0.5}, complete=False)
+    m12 = DSVector.from_focal(FRAME_AHR, {"a": 0.3, "a,h,r": 0.7})
     with pytest.raises(ValueError, match="dogmatic"):
         decombine_crc(m12, m_dog)
 
 
 def test_decombine_drc_normal_raises():
-    m_normal = DSVector.from_focal(FRAME3, {"a": 0.5, "a,h,r": 0.5})
-    m12 = DSVector.from_focal(FRAME3, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
+    m_normal = DSVector.from_focal(FRAME_AHR, {"a": 0.5, "a,h,r": 0.5})
+    m12 = DSVector.from_focal(FRAME_AHR, {"": 0.1, "a": 0.4, "a,h,r": 0.5}, complete=False)
     with pytest.raises(ValueError, match="normal"):
         decombine_drc(m12, m_normal)
 
@@ -353,39 +353,39 @@ def test_decombine_drc_kind_m():
 # ===========================================================================
 
 def test_simple_mf_focal_sets():
-    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=0.6)
+    s = DSVector.simple(FRAME_AHR, frozenset({"a"}), beta=0.6)
     assert np.isclose(s[frozenset({"a","h","r"})], 0.6)
     assert np.isclose(s[frozenset({"a"})],          0.4)
     assert np.isclose(sum(s.sparse.values()),        1.0)
 
 
 def test_simple_mf_beta1_vacuous():
-    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=1.0)
+    s = DSVector.simple(FRAME_AHR, frozenset({"a"}), beta=1.0)
     assert np.isclose(s[frozenset({"a","h","r"})], 1.0)
 
 
 def test_simple_mf_beta0_categorical():
-    s = DSVector.simple(FRAME3, frozenset({"a"}), beta=0.0)
+    s = DSVector.simple(FRAME_AHR, frozenset({"a"}), beta=0.0)
     assert np.isclose(s[frozenset({"a"})], 1.0)
 
 
 def test_negative_simple_mf_focal_sets():
-    ns = DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=0.4)
+    ns = DSVector.negative_simple(FRAME_AHR, frozenset({"a"}), beta=0.4)
     assert np.isclose(ns[frozenset()],      0.4)
     assert np.isclose(ns[frozenset({"a"})], 0.6)
     assert np.isclose(sum(ns.sparse.values()), 1.0)
 
 
 def test_negative_simple_mf_beta0_categorical():
-    ns = DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=0.0)
+    ns = DSVector.negative_simple(FRAME_AHR, frozenset({"a"}), beta=0.0)
     assert np.isclose(ns[frozenset({"a"})], 1.0)
 
 
 def test_simple_beta_out_of_range_raises():
     with pytest.raises(ValueError, match="beta"):
-        DSVector.simple(FRAME3, frozenset({"a"}), beta=1.5)
+        DSVector.simple(FRAME_AHR, frozenset({"a"}), beta=1.5)
 
 
 def test_negative_simple_beta_out_of_range_raises():
     with pytest.raises(ValueError, match="beta"):
-        DSVector.negative_simple(FRAME3, frozenset({"a"}), beta=-0.1)
+        DSVector.negative_simple(FRAME_AHR, frozenset({"a"}), beta=-0.1)

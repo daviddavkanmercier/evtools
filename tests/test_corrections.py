@@ -7,10 +7,10 @@ import pytest
 from evtools.dsvector import DSVector, Kind
 from evtools.corrections import discount, contextual_discount, theta_contextual_discount
 
-FRAME = ["a", "h", "r"]
+FRAME_AHR = ["a", "h", "r"]
 
 # m({a})=0.5, m({r})=0.5  (Example 1 of Mercier 2008)
-M = DSVector.from_focal(FRAME, {"a": 0.5, "r": 0.5})
+M = DSVector.from_focal(FRAME_AHR, {"a": 0.5, "r": 0.5})
 
 
 # ---------------------------------------------------------------------------
@@ -27,11 +27,11 @@ def test_discount_known_result():
 
 
 def test_discount_beta1_unchanged():
-    assert np.allclose(discount(M, 0.0).dense, M.dense, atol=1e-10)
+    assert np.allclose(discount(M, 1.0).dense, M.dense, atol=1e-10)
 
 
 def test_discount_beta0_vacuous():
-    vac = discount(M, 1.0)
+    vac = discount(M, 0.0)
     assert np.isclose(vac[frozenset({"a","h","r"})], 1.0)
     assert np.isclose(sum(vac.sparse.values()),       1.0)
 
@@ -73,7 +73,7 @@ def test_contextual_discount_case1_mercier2008():
 
 def test_contextual_discount_all_reliable_unchanged():
     # All β=1 → no correction
-    betas = {frozenset({x}): 1.0 for x in FRAME}
+    betas = {frozenset({x}): 1.0 for x in FRAME_AHR}
     assert np.allclose(contextual_discount(M, betas).dense, M.dense, atol=1e-10)
 
 
@@ -86,7 +86,7 @@ def test_contextual_discount_non_singleton_raises():
 
 
 def test_contextual_discount_kind_m():
-    betas = {frozenset({x}): 0.8 for x in FRAME}
+    betas = {frozenset({x}): 0.8 for x in FRAME_AHR}
     assert contextual_discount(M, betas).kind == Kind.M
 
 
@@ -97,14 +97,14 @@ def test_contextual_discount_kind_m():
 def test_theta_discount_reduces_to_classical():
     # Θ = {Ω}, single β → same as discount(m, beta)
     beta = 0.6
-    omega = frozenset(FRAME)
+    omega = frozenset(FRAME_AHR)
     mt = theta_contextual_discount(M, {omega: beta})
     assert np.allclose(mt.dense, discount(M, beta).dense, atol=1e-10)
 
 
 def test_theta_discount_reduces_to_contextual():
     # Θ = singletons → same as contextual_discount
-    betas = {frozenset({x}): 0.7 for x in FRAME}
+    betas = {frozenset({x}): 0.7 for x in FRAME_AHR}
     mt = theta_contextual_discount(M, betas)
     mcd = contextual_discount(M, betas)
     assert np.allclose(mt.dense, mcd.dense, atol=1e-10)
@@ -122,7 +122,7 @@ def test_theta_discount_coarsening():
 
 
 def test_theta_discount_all_reliable_unchanged():
-    omega = frozenset(FRAME)
+    omega = frozenset(FRAME_AHR)
     mt = theta_contextual_discount(M, {omega: 1.0})
     assert np.allclose(mt.dense, M.dense, atol=1e-10)
 
@@ -176,14 +176,14 @@ def test_is_valid_valid_bba():
     assert M.is_valid
 
 def test_is_valid_negative_mass():
-    m_inv = DSVector.from_sparse(FRAME, {
+    m_inv = DSVector.from_sparse(FRAME_AHR, {
         frozenset({"a"}): -0.1,
         frozenset({"a","h","r"}): 1.1,
     }, kind=Kind.M)
     assert not m_inv.is_valid
 
 def test_is_valid_sum_not_one():
-    m_inv = DSVector.from_sparse(FRAME, {frozenset({"a"}): 0.3}, kind=Kind.M)
+    m_inv = DSVector.from_sparse(FRAME_AHR, {frozenset({"a"}): 0.3}, kind=Kind.M)
     assert not m_inv.is_valid
 
 def test_is_valid_other_kinds_always_true():
@@ -197,7 +197,7 @@ def test_is_valid_other_kinds_always_true():
 
 from evtools.corrections import contextual_reinforce
 
-BETAS_SINGLETONS = {frozenset({x}): 0.7 for x in FRAME}
+BETAS_SINGLETONS = {frozenset({x}): 0.7 for x in FRAME_AHR}
 
 def test_cr_valid():
     assert contextual_reinforce(M, BETAS_SINGLETONS).is_valid
@@ -209,7 +209,7 @@ def test_cr_sums_to_one():
     assert np.isclose(sum(contextual_reinforce(M, BETAS_SINGLETONS).sparse.values()), 1.0)
 
 def test_cr_all_reliable_unchanged():
-    betas = {frozenset({x}): 1.0 for x in FRAME}
+    betas = {frozenset({x}): 1.0 for x in FRAME_AHR}
     assert np.allclose(contextual_reinforce(M, betas).dense, M.dense, atol=1e-10)
 
 def test_cr_beta_out_of_range_raises():
@@ -264,7 +264,7 @@ def test_cdr_beta_zero_raises():
 from evtools.corrections import contextual_negate
 
 def test_cn_all_reliable_unchanged():
-    betas = {frozenset({x}): 1.0 for x in FRAME}
+    betas = {frozenset({x}): 1.0 for x in FRAME_AHR}
     assert np.allclose(contextual_negate(M, betas).dense, M.dense, atol=1e-10)
 
 def test_cn_pure_negation():

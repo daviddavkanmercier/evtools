@@ -11,8 +11,8 @@ from evtools.dsvector import DSVector, Kind
 # Fixtures
 # ---------------------------------------------------------------------------
 
-FRAME2 = ["a", "b"]
-FRAME3 = ["a", "b", "c"]
+FRAME_AB = ["a", "b"]
+FRAME_ABC = ["a", "b", "c"]
 
 # m over {a,b}: m({a})=0.3, m({b})=0.5, m({a,b})=0.2
 DENSE2 = np.array([0.0, 0.3, 0.5, 0.2])
@@ -44,7 +44,7 @@ def test_kind_values():
 # ---------------------------------------------------------------------------
 
 def test_from_focal_basic():
-    m = DSVector.from_focal(FRAME2, {"a": 0.3, "b": 0.5, "a,b": 0.2})
+    m = DSVector.from_focal(FRAME_AB, {"a": 0.3, "b": 0.5, "a,b": 0.2})
     assert np.isclose(m[frozenset({"a"})], 0.3)
     assert np.isclose(m[frozenset({"b"})], 0.5)
     assert np.isclose(m[frozenset({"a", "b"})], 0.2)
@@ -53,36 +53,36 @@ def test_from_focal_basic():
 
 def test_from_focal_complete():
     # Only partial spec — remainder goes to Omega
-    m = DSVector.from_focal(FRAME2, {"a": 0.3})
+    m = DSVector.from_focal(FRAME_AB, {"a": 0.3})
     assert np.isclose(m[frozenset({"a", "b"})], 0.7)
     assert np.isclose(sum(m.sparse.values()), 1.0)
 
 
 def test_from_focal_no_complete():
-    m = DSVector.from_focal(FRAME2, {"a": 0.3}, complete=False)
+    m = DSVector.from_focal(FRAME_AB, {"a": 0.3}, complete=False)
     assert np.isclose(m[frozenset({"a"})], 0.3)
     assert np.isclose(sum(m.sparse.values()), 0.3)
 
 
 def test_from_focal_empty_set():
-    m = DSVector.from_focal(FRAME2, {"": 0.1, "a": 0.3, "a,b": 0.6}, complete=False)
+    m = DSVector.from_focal(FRAME_AB, {"": 0.1, "a": 0.3, "a,b": 0.6}, complete=False)
     assert np.isclose(m[frozenset()], 0.1)
     assert np.isclose(sum(m.sparse.values()), 1.0)
 
 
 def test_from_focal_unknown_atom_raises():
     with pytest.raises(ValueError, match="not in the frame"):
-        DSVector.from_focal(FRAME2, {"c": 0.5, "a,b": 0.5})
+        DSVector.from_focal(FRAME_AB, {"c": 0.5, "a,b": 0.5})
 
 
 def test_from_focal_negative_mass_raises():
     with pytest.raises(ValueError, match="non-negative"):
-        DSVector.from_focal(FRAME2, {"a": -0.1, "a,b": 1.1})
+        DSVector.from_focal(FRAME_AB, {"a": -0.1, "a,b": 1.1})
 
 
 def test_from_focal_total_exceeds_one_raises():
     with pytest.raises(ValueError, match="exceeds 1"):
-        DSVector.from_focal(FRAME2, {"a": 0.7, "b": 0.8}, complete=False)
+        DSVector.from_focal(FRAME_AB, {"a": 0.7, "b": 0.8}, complete=False)
 
 
 # ---------------------------------------------------------------------------
@@ -90,25 +90,25 @@ def test_from_focal_total_exceeds_one_raises():
 # ---------------------------------------------------------------------------
 
 def test_from_dense_basic():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert np.allclose(m.dense, DENSE2)
     assert m.kind == Kind.M
 
 
 def test_from_dense_wrong_size_raises():
     with pytest.raises(ValueError, match="Array length"):
-        DSVector.from_dense(FRAME2, np.array([0.3, 0.7]))
+        DSVector.from_dense(FRAME_AB, np.array([0.3, 0.7]))
 
 
 def test_from_dense_tol():
     array = np.array([1e-15, 0.3, 0.5, 0.2])
-    m = DSVector.from_dense(FRAME2, array, tol=1e-12)
+    m = DSVector.from_dense(FRAME_AB, array, tol=1e-12)
     assert frozenset() not in m.sparse   # dropped
     assert frozenset({"a"}) in m.sparse
 
 
 def test_from_dense_caches_dense():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     d1 = m.dense
     d2 = m.dense
     assert np.allclose(d1, d2)
@@ -119,7 +119,7 @@ def test_from_dense_caches_dense():
 # ---------------------------------------------------------------------------
 
 def test_from_sparse_basic():
-    m = DSVector.from_sparse(FRAME3, SPARSE3)
+    m = DSVector.from_sparse(FRAME_ABC, SPARSE3)
     assert np.isclose(m[frozenset({"a"})], 0.1)
     assert np.isclose(m[frozenset({"b", "c"})], 0.5)
     assert m.kind == Kind.M
@@ -127,7 +127,7 @@ def test_from_sparse_basic():
 
 def test_from_sparse_unknown_atom_raises():
     with pytest.raises(ValueError, match="not in the frame"):
-        DSVector.from_sparse(FRAME2, {frozenset({"z"}): 0.5})
+        DSVector.from_sparse(FRAME_AB, {frozenset({"z"}): 0.5})
 
 
 # ---------------------------------------------------------------------------
@@ -135,16 +135,16 @@ def test_from_sparse_unknown_atom_raises():
 # ---------------------------------------------------------------------------
 
 def test_properties():
-    m = DSVector.from_dense(FRAME2, DENSE2)
-    assert m.frame == FRAME2
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
+    assert m.frame == FRAME_AB
     assert m.n_atoms == 2
     assert m.n_focal == 3   # three non-zero entries
 
 
 def test_sparse_dense_roundtrip():
-    m = DSVector.from_sparse(FRAME3, SPARSE3)
+    m = DSVector.from_sparse(FRAME_ABC, SPARSE3)
     d = m.dense
-    m2 = DSVector.from_dense(FRAME3, d)
+    m2 = DSVector.from_dense(FRAME_ABC, d)
     assert np.allclose(m2.dense, d)
 
 
@@ -153,19 +153,19 @@ def test_sparse_dense_roundtrip():
 # ---------------------------------------------------------------------------
 
 def test_getitem_missing_returns_zero():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert m[frozenset()] == 0.0
 
 
 def test_iter():
-    m = DSVector.from_sparse(FRAME3, SPARSE3)
+    m = DSVector.from_sparse(FRAME_ABC, SPARSE3)
     items = dict(m)
     assert frozenset({"a"}) in items
     assert frozenset({"b", "c"}) in items
 
 
 def test_len():
-    m = DSVector.from_sparse(FRAME3, SPARSE3)
+    m = DSVector.from_sparse(FRAME_ABC, SPARSE3)
     assert len(m) == 3
 
 
@@ -175,7 +175,7 @@ def test_len():
 
 @pytest.mark.parametrize("target", [Kind.BEL, Kind.PL, Kind.B, Kind.Q])
 def test_to_and_back(target):
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     converted = m.to(target)
     assert converted.kind == target
     back = converted.to(Kind.M)
@@ -183,14 +183,14 @@ def test_to_and_back(target):
 
 
 def test_to_same_kind_returns_copy():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     m2 = m.to(Kind.M)
     assert m2.kind == Kind.M
     assert np.allclose(m2.dense, m.dense)
 
 
 def test_convenience_shortcuts():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert m.to_bel().kind == Kind.BEL
     assert m.to_pl().kind  == Kind.PL
     assert m.to_b().kind   == Kind.B
@@ -200,7 +200,7 @@ def test_convenience_shortcuts():
 def test_subnormal_to_v_and_w():
     # v and w require b > 0 everywhere (subnormal BBA)
     m_sub = np.array([0.1, 0.3, 0.4, 0.2])
-    m = DSVector.from_dense(FRAME2, m_sub)
+    m = DSVector.from_dense(FRAME_AB, m_sub)
     assert np.allclose(m.to_v().to_m().dense, m_sub, atol=1e-10)
     assert np.allclose(m.to_w().to_m().dense, m_sub, atol=1e-10)
 
@@ -210,41 +210,41 @@ def test_subnormal_to_v_and_w():
 # ---------------------------------------------------------------------------
 
 def test_repr_contains_kind_and_frame():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     r = repr(m)
     assert "m" in r
     assert "a" in r
     assert "b" in r
 
 def test_repr_contains_kind_label():
-    assert "Basic Belief Assignment" in repr(DSVector.from_dense(FRAME2, DENSE2))
-    assert "Belief function"         in repr(DSVector.from_dense(FRAME2, DENSE2).to_bel())
-    assert "Plausibility function"   in repr(DSVector.from_dense(FRAME2, DENSE2).to_pl())
+    assert "Basic Belief Assignment" in repr(DSVector.from_dense(FRAME_AB, DENSE2))
+    assert "Belief function"         in repr(DSVector.from_dense(FRAME_AB, DENSE2).to_bel())
+    assert "Plausibility function"   in repr(DSVector.from_dense(FRAME_AB, DENSE2).to_pl())
 
 def test_repr_contains_subset_labels():
-    m = DSVector.from_focal(FRAME2, {"a": 0.3, "b": 0.5, "a,b": 0.2})
+    m = DSVector.from_focal(FRAME_AB, {"a": 0.3, "b": 0.5, "a,b": 0.2})
     r = repr(m)
     assert "{a}" in r
     assert "{b}" in r
     assert "{a, b}" in r
 
 def test_repr_contains_total_for_m():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert "Total" in repr(m)
 
 def test_repr_no_total_for_bel():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert "Total" not in repr(m.to_bel())
 
 def test_repr_empty_set_label():
-    m = DSVector.from_focal(FRAME2, {"": 0.1, "a": 0.9}, complete=False)
+    m = DSVector.from_focal(FRAME_AB, {"": 0.1, "a": 0.9}, complete=False)
     assert "∅" in repr(m)
 
 def test_repr_focal_count():
-    m = DSVector.from_dense(FRAME2, DENSE2)
+    m = DSVector.from_dense(FRAME_AB, DENSE2)
     assert "3 focal elements" in repr(m)
 
 def test_repr_single_focal_singular():
-    m = DSVector.from_focal(FRAME2, {"a": 1.0})
+    m = DSVector.from_focal(FRAME_AB, {"a": 1.0})
     assert "1 focal element" in repr(m)
     assert "1 focal elements" not in repr(m)
