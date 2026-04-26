@@ -37,5 +37,5 @@ from . import combinations
 from . import corrections
 from .dsvector import DSVector, Kind
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 __all__ = ["conversions", "combinations", "corrections", "DSVector", "Kind"]
