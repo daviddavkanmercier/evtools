@@ -15,16 +15,27 @@ evtools.conversions
     Low-level conversion functions between all standard representations
     (m, bel, pl, b, q, v, w) via the Fast Möbius Transform.
 
+evtools.combinations
+    Combination rules: CRC, Dempster, DRC, Cautious, Bold.
+
+evtools.corrections
+    Correction mechanisms: discounting, reinforcement, negating and
+    their contextual and inverse variants.
+
 Usage
 -----
     from evtools.dsvector import DSVector, Kind
+    from evtools.combinations import crc, dempster
+    from evtools.corrections import discount, contextual_discount
 
     m = DSVector.from_focal(["a", "b"], {"a": 0.3, "b": 0.5})
-    pl = m.to_pl()
+    m_disc = discount(m, alpha=0.4)
 """
 
 from . import conversions
+from . import combinations
+from . import corrections
 from .dsvector import DSVector, Kind
 
-__version__ = "0.2.0"
-__all__ = ["conversions", "DSVector", "Kind"]
+__version__ = "0.3.0"
+__all__ = ["conversions", "combinations", "corrections", "DSVector", "Kind"]

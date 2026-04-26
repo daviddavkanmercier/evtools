@@ -223,3 +223,61 @@ b2 = DSVector.from_focal(frame, {"": 0.2, "r": 0.3, "a,h,r": 0.5}, complete=Fals
 print(f"\n{DIM}# Bold disjunctive rule — sources possibly overlapping, ≥1 reliable{R}")
 print(f"{DIM}# Requires subnormal BBAs (m(∅) > 0){R}\n")
 print(bold(b1, b2))
+
+
+# ---------------------------------------------------------------------------
+# 10. Correction mechanisms
+# ---------------------------------------------------------------------------
+
+section("10. Correction mechanisms")
+
+from evtools.corrections import (
+    discount, contextual_discount, theta_contextual_discount,
+    contextual_reinforce, contextual_dediscount, contextual_dereinforce,
+    contextual_negate,
+)
+
+# Sensor hesitates between airplane and rocket
+s = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
+print(f"{DIM}# Original BBA{R}")
+print(s)
+
+# --- Classical discounting ---
+print(f"\n{DIM}# Classical discounting α=0.4 — source 40% unreliable{R}")
+print(discount(s, 0.4))
+
+# --- Contextual discounting ---
+print(f"\n{DIM}# Contextual discounting — unreliable only when airplane (α_a=0.4){R}")
+betas_cd = {
+    frozenset({"a"}): 0.6,
+    frozenset({"h"}): 1.0,
+    frozenset({"r"}): 1.0,
+}
+mcd = contextual_discount(s, betas_cd)
+print(mcd)
+
+# --- Θ-contextual discounting ---
+print(f"\n{DIM}# Θ-contextual discounting — Θ={{a}},{{h,r}}{R}")
+betas_theta = {frozenset({"a"}): 0.4, frozenset({"h","r"}): 0.9}
+print(theta_contextual_discount(s, betas_theta))
+
+# --- Contextual reinforcement ---
+print(f"\n{DIM}# Contextual reinforcement — dual of discounting{R}")
+betas_cr = {frozenset({"a"}): 0.6, frozenset({"h"}): 1.0, frozenset({"r"}): 1.0}
+print(contextual_reinforce(s, betas_cr))
+
+# --- CdD: inverse of CD ---
+print(f"\n{DIM}# Contextual de-discounting — reverses the CD above{R}")
+mdd = contextual_dediscount(mcd, betas_cd)
+print(mdd)
+ok = np.allclose(mdd.dense, s.dense, atol=1e-6)
+print(f"  Recovers original: {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
+
+# --- CN: contextual negating ---
+print(f"\n{DIM}# Contextual negating — source lies for some contexts{R}")
+print(contextual_negate(s, {frozenset({"a"}): 0.7}))
+
+# --- is_valid ---
+print(f"\n{DIM}# is_valid — useful after decombination operations{R}")
+print(f"  Original BBA is_valid : {s.is_valid}")
+print(f"  Discounted   is_valid : {discount(s, 0.4).is_valid}")

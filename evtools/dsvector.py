@@ -381,6 +381,28 @@ class DSVector:
         """Number of non-zero focal elements."""
         return len(self._sparse)
 
+    @property
+    def is_valid(self) -> bool:
+        """
+        Whether this DSVector is a valid BBA (for Kind.M only).
+
+        A BBA is valid if:
+        - all masses are non-negative
+        - masses sum to 1
+
+        For other kinds (bel, pl, b, q, v, w), always returns True since
+        validity constraints differ and are not checked here.
+
+        This property is useful after inverse operations (CdD, CdR) which
+        may produce functions that are not valid BBAs.
+        """
+        if self._kind != Kind.M:
+            return True
+        if any(v < -1e-10 for v in self._sparse.values()):
+            return False
+        total = sum(self._sparse.values())
+        return abs(total - 1.0) < 1e-10
+
     # ------------------------------------------------------------------
     # Conversions
     # ------------------------------------------------------------------

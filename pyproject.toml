@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evtools-dst"
-version = "0.2.0"
+version = "0.3.0"
 description = "Evidence Theory Tools — utilities for Dempster-Shafer theory of belief functions"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -19,6 +19,10 @@ keywords = [
     "plausibility",
     "transferable belief model",
     "contextual discounting",
+    "contextual correction",
+    "discounting",
+    "reinforcement",
+    "negating",
 ]
 classifiers = [
     "Development Status :: 3 - Alpha",
