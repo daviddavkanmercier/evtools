@@ -133,10 +133,40 @@ print()
 print(m_sub.to_w())
 
 # ---------------------------------------------------------------------------
-# 5. Round-trip consistency
+# 5. Conjunctive and disjunctive weights (v, w)
+# ---------------------------------------------------------------------------
+# v (disjunctive weights) and w (conjunctive weights) require a subnormal BBA
+# (m(∅) > 0), so that b(A) > 0 for all A ⊆ Ω.
+# They are defined via a Möbius transform on log(b) and log(q) respectively
+# (Denoeux 2008, Section 2.2).
+
+section("5. Conjunctive and disjunctive weights (v, w)")
+
+print(f"{DIM}# Subnormal BBA required — m(∅) > 0{R}")
+m_sub2 = DSVector.from_focal(frame, {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2}, complete=False)
+print(m_sub2)
+
+print()
+print(f"{DIM}# Disjunctive weight function v{R}")
+print(m_sub2.to_v())
+
+print()
+print(f"{DIM}# Conjunctive weight function w{R}")
+print(m_sub2.to_w())
+
+print()
+print(f"{DIM}# Round-trip v and w{R}")
+for kind in [Kind.V, Kind.W]:
+    back = m_sub2.to(kind).to(Kind.M)
+    ok = np.allclose(back.dense, m_sub2.dense, atol=1e-10)
+    status = f"{GREEN}✓ OK{R}" if ok else f"{RED}✗ MISMATCH{R}"
+    print(f"  m_sub → {kind.value} → m   {status}")
+
+# ---------------------------------------------------------------------------
+# 6. Round-trip consistency
 # ---------------------------------------------------------------------------
 
-section("5. Round-trip consistency")
+section("6. Round-trip consistency")
 
 for kind in [Kind.BEL, Kind.PL, Kind.B, Kind.Q]:
     back = m.to(kind).to(Kind.M)
@@ -156,7 +186,7 @@ for kind in [Kind.V, Kind.W]:
 # All conversions are also available as standalone functions on numpy arrays,
 # using the Fast Möbius Transform (Smets 2002, Section 3).
 
-section("6. Low-level conversions API  (numpy arrays)")
+section("7. Low-level conversions API  (numpy arrays)")
 
 from evtools.conversions import mtobel, mtopl, mtob
 
@@ -175,7 +205,7 @@ print(f"b   : {mtob(m_array)}")
 #   | Distinct sources    | crc / dempster | drc    |
 #   | Nondistinct sources | cautious       | bold   |
 
-section("7. Combination rules")
+section("8. Combination rules")
 
 from evtools.combinations import crc, dempster, drc, cautious, bold
 
@@ -202,7 +232,7 @@ print(f"\n  Commutativity s1 & s2 == s2 & s1 :  {GREEN}✓ OK{R}" if ok else f" 
 # 8. Disjunctive Rule of Combination (DRC)
 # ---------------------------------------------------------------------------
 
-section("8. DRC — at least one source reliable  (s1 | s2)")
+section("9. DRC — at least one source reliable  (s1 | s2)")
 
 print(s1 | s2)
 
@@ -210,7 +240,7 @@ print(s1 | s2)
 # 9. Cautious and Bold rules (nondistinct sources)
 # ---------------------------------------------------------------------------
 
-section("9. Cautious and Bold rules (nondistinct sources)")
+section("10. Cautious and Bold rules (nondistinct sources)")
 
 # Cautious: nondogmatic BBAs (m(Ω) > 0), commutative, associative, idempotent
 c1 = DSVector.from_focal(frame, {"a": 0.3, "h": 0.2, "a,h,r": 0.5})
@@ -241,7 +271,7 @@ print(bold(b1, b2))
 #   contextual_dereinforce(m,betas) — inverse of CR
 #   contextual_negate(m, betas)     — source lies contextually
 
-section("10. Correction mechanisms")
+section("11. Correction mechanisms")
 
 from evtools.corrections import (
     discount, contextual_discount, theta_contextual_discount,
@@ -294,7 +324,7 @@ print(f"  discount(s,.6).is_valid = {discount(s, 0.6).is_valid}")
 #   A^β  (DSVector.simple)          — focal sets Ω (mass β) and A (mass 1−β)
 #   A_β  (DSVector.negative_simple) — focal sets ∅ (mass β) and A (mass 1−β)
 
-section("11. Simple MFs and decombination")
+section("12. Simple MFs and decombination")
 
 print(f"{DIM}# Simple MF A^β — focal sets Ω and A (used in CR, CdR, CN){R}")
 s_simple = DSVector.simple(frame, frozenset({"a"}), beta=0.6)
@@ -330,7 +360,7 @@ print(f"  Recovers m1_sub: {GREEN}✓ OK{R}" if ok_d else f"  {RED}✗ MISMATCH{
 # Four output formats are available via the display module.
 # The column header adapts to the kind (m, bel, pl, b, q, v, w).
 
-section("12. Display formats")
+section("13. Display formats")
 
 from evtools.display import repr_plain, repr_html, repr_latex
 
