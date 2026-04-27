@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.8.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.9.0.
 
 ## Modules
 
@@ -195,12 +195,18 @@ Four output formats, all adapting the column header to the kind (`m`, `bel`, `pl
 In Jupyter notebooks, `DSVector._repr_html_()` is called automatically.
 
 ```python
-from evtools.display import repr_plain, repr_html, repr_latex
+from evtools.display import repr_plain, repr_html, repr_latex, display_all
 
 print(repr_plain(m))   # plain text, no colors
 print(repr_latex(m))   # LaTeX tabular for papers
 m.display("ansi")      # colored terminal (default)
 m.display("html")      # HTML table
+
+# Show all representations in one table
+# v added if m is subnormal (m(∅) > 0)
+# w added if m is non-dogmatic (m(Ω) > 0)
+print(display_all(m, "plain"))
+m.display_all()        # same via method
 ```
 
 ---

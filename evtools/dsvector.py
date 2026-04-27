@@ -56,6 +56,12 @@ from .conversions import (
 # ---------------------------------------------------------------------------
 
 class Kind(Enum):
+    """
+    Enumeration of the supported belief function representations.
+
+    Each kind corresponds to a standard mathematical function defined
+    on the power set 2^Ω.
+    """
     M   = "m"    # Basic Belief Assignment
     BEL = "bel"  # Belief function
     PL  = "pl"   # Plausibility function
@@ -629,4 +635,24 @@ class DSVector:
         """Return HTML representation for Jupyter notebooks."""
         from .display import repr_html
         return repr_html(self)
+
+    def display_all(self, fmt: str = "ansi") -> str:
+        """
+        Render all representations in a single table.
+
+        Columns: m, bel, pl, b, q — plus v and w if the BBA is subnormal.
+        Rows: all subsets with at least one non-zero value.
+
+        Parameters
+        ----------
+        fmt : str
+            Output format: "ansi" (default), "plain", "html", or "latex".
+
+        Returns
+        -------
+        str
+            Formatted string in the requested format.
+        """
+        from .display import display_all
+        return display_all(self, fmt)
 

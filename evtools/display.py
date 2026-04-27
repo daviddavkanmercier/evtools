@@ -12,11 +12,12 @@ DSVector integration
 --------------------
 - DSVector.__repr__      calls repr_ansi  (terminal default)
 - DSVector._repr_html_   calls repr_html  (Jupyter auto-display)
-- DSVector.display(fmt)  calls the requested format explicitly
+- DSVector.display(fmt)      calls the requested format explicitly
+- DSVector.display_all(fmt)  calls display_all explicitly
 
 Usage
 -----
-    from evtools.display import repr_plain, repr_latex
+    from evtools.display import repr_plain, repr_latex, display_all
 
     m = DSVector.from_focal(["a", "h", "r"], {"a": 0.5, "r": 0.5})
 
@@ -31,7 +32,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .dsvector import DSVector, Kind
 
-from .constants import DISPLAY_TOL
+from .constants import DISPLAY_TOL, ZERO_MASS
 
 
 # ---------------------------------------------------------------------------
@@ -370,7 +371,7 @@ def repr_latex(m: "DSVector") -> str:
         Kind.W:   "w",
     }.get(m.kind, m.kind.value)
 
-    def latex_label(subset: frozenset) -> str:
+    def _latex_label(subset: frozenset) -> str:
         if not subset:
             return "$\\emptyset$"
         atoms = ", ".join(sorted(subset, key=m.frame.index))
@@ -385,7 +386,7 @@ def repr_latex(m: "DSVector") -> str:
     ]
 
     for subset, value in items:
-        label = latex_label(subset)
+        label = _latex_label(subset)
         lines.append(f"{label} & {value:.4f} \\\\")
 
     lines.append("\\hline")
@@ -396,4 +397,209 @@ def repr_latex(m: "DSVector") -> str:
         lines.append("\\hline")
 
     lines.append("\\end{tabular}")
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# display_all — all kinds in one table
+# ---------------------------------------------------------------------------
+
+def display_all(m: "DSVector", fmt: str = "ansi") -> str:
+    """
+    Render all representations of a DSVector in a single table.
+
+    Subsets are listed in rows; the columns show the value of each
+    representation (m, bel, pl, b, q). Additional columns are added
+    automatically when the conditions are met:
+
+    - v (disjunctive weights): added when the BBA is subnormal (m(∅) > 0),
+      so that b(A) > 0 for all A ⊆ Ω.
+    - w (conjunctive weights): added when the BBA is non-dogmatic (m(Ω) > 0),
+      so that q(A) > 0 for all A ⊂ Ω.
+
+    Parameters
+    ----------
+    m : DSVector
+        The BBA to display (kind must be Kind.M).
+    fmt : str
+        Output format: "ansi" (default), "plain", "html", or "latex".
+
+    Returns
+    -------
+    str
+        Formatted string in the requested format.
+
+    Raises
+    ------
+    ValueError
+        If m is not a BBA (kind != Kind.M), or if fmt is unknown.
+    """
+    from .dsvector import DSVector, Kind, _subset_index
+    from .conversions import mtobel, mtopl, mtob, mtoq, mtov, mtow
+
+    if m.kind != Kind.M:
+        raise ValueError(
+            f"display_all: argument has kind '{m.kind.value}', expected 'm'."
+        )
+
+    if fmt not in ("ansi", "plain", "html", "latex"):
+        raise ValueError(f"display_all: unknown format '{fmt}'. "
+                         f"Choose from: ansi, plain, html, latex.")
+
+    # Decide which kinds to show
+    # v requires subnormal BBA: m(∅) > 0  (so that b(A) > 0 for all A ⊆ Ω)
+    # w requires non-dogmatic BBA: m(Ω) > 0 (so that q(A) > 0 for all A ⊂ Ω)
+    omega = frozenset(m.frame)
+    is_subnormal    = m[frozenset()] > ZERO_MASS
+    is_nondogmatic  = m[omega] > ZERO_MASS
+    kinds = [
+        ("m",   m.dense),
+        ("bel", mtobel(m.dense)),
+        ("pl",  mtopl(m.dense)),
+        ("b",   mtob(m.dense)),
+        ("q",   mtoq(m.dense)),
+    ]
+    if is_subnormal:
+        try:
+            kinds.append(("v", mtov(m.dense)))
+        except Exception:
+            pass
+    if is_nondogmatic:
+        try:
+            kinds.append(("w", mtow(m.dense)))
+        except Exception:
+            pass
+
+    # All subsets in binary index order
+    n = 2 ** len(m.frame)
+    all_subsets = sorted(
+        [frozenset(atom for k, atom in enumerate(m.frame) if i >> k & 1)
+         for i in range(n)],
+        key=lambda s: _subset_index(s, m.frame)
+    )
+
+    # Filter: keep only subsets with at least one non-zero value
+    def _row_values(subset):
+        idx = _subset_index(subset, m.frame)
+        return [arr[idx] for _, arr in kinds]
+
+    rows = [(s, _row_values(s)) for s in all_subsets
+            if any(abs(v) > ZERO_MASS for v in _row_values(s))]
+
+    col_labels = [k for k, _ in kinds]
+    subset_labels = [_subset_label(s, m.frame) for s, _ in rows]
+    col_w = max((len(s) for s in subset_labels), default=6)
+    col_w = max(col_w, 6)
+    val_w = 8
+
+    if fmt == "plain":
+        return _display_all_plain(col_labels, subset_labels, rows, col_w, val_w)
+    elif fmt == "ansi":
+        return _display_all_ansi(m, col_labels, subset_labels, rows, col_w, val_w)
+    elif fmt == "html":
+        return _display_all_html(m, col_labels, subset_labels, rows)
+    elif fmt == "latex":
+        return _display_all_latex(col_labels, subset_labels, rows)
+
+
+def _display_all_plain(col_labels, subset_labels, rows, col_w, val_w):
+    val_w = 9
+    header = f"  {'Subset':<{col_w}}" + "".join(f"  {k:>{val_w}}" for k in col_labels)
+    sep = "  " + "-" * (col_w + (val_w + 2) * len(col_labels))
+    lines = ["", header, sep]
+    for label, (_, vals) in zip(subset_labels, rows):
+        line = f"  {label:<{col_w}}" + "".join(f"  {v:>{val_w}.4f}" for v in vals)
+        lines.append(line)
+    lines.append(sep)
+    return "\n".join(lines)
+
+
+def _display_all_ansi(m, col_labels, subset_labels, rows, col_w, val_w):
+    B, R, D = "\033[1m", "\033[0m", "\033[2m"
+    val_w = 9
+    frame_str = "{" + ", ".join(m.frame) + "}"
+    is_sub = m[frozenset()] > ZERO_MASS
+
+    lines = [
+        f"{B}DSVector{R}  kind={B}m{R}  {D}(Basic Belief Assignment){R}  "
+        f"frame={B}{frame_str}{R}"
+        + (f"  {D}(subnormal){R}" if is_sub else ""),
+        "",
+    ]
+
+    header = f"  {B}{'Subset':<{col_w}}{R}"
+    for k in col_labels:
+        color = _KIND_COLOR.get(k, "")
+        header += f"  {color}{B}{k:>{val_w}}{R}"
+    sep = f"  {D}{'─' * (col_w + (val_w + 2) * len(col_labels))}{R}"
+    lines += [header, sep]
+
+    for label, (_, vals) in zip(subset_labels, rows):
+        line = f"  {_BLUE}{label:<{col_w}}{R}"
+        for v in vals:
+            line += f"  {B}{v:>{val_w}.4f}{R}"
+        lines.append(line)
+
+    lines.append(sep)
+    return "\n".join(lines)
+
+
+def _display_all_html(m, col_labels, subset_labels, rows):
+    from .dsvector import Kind
+    frame_str = "{" + ", ".join(m.frame) + "}"
+    is_sub = m[frozenset()] > ZERO_MASS
+    kind_colors = {
+        "m": "#17a2b8", "bel": "#007bff", "pl": "#28a745",
+        "b": "#ffc107", "q": "#6f42c1", "v": "#dc3545", "w": "#fd7e14",
+    }
+
+    html = [
+        f'<div style="font-family:monospace; margin:8px 0;">',
+        f'  <span style="font-weight:bold;">DSVector</span>',
+        f'  <span style="color:#17a2b8; font-weight:bold;">m</span>',
+        f'  <span style="color:#6c757d;">(Basic Belief Assignment)</span>',
+        f'  &nbsp; frame=<b>{frame_str}</b>',
+        f'  &nbsp; <span style="color:#6c757d;">all representations</span>',
+        f'</div>',
+        f'<table style="border-collapse:collapse; font-family:monospace; font-size:0.9em;">',
+        f'  <thead><tr style="border-bottom:2px solid #dee2e6;">',
+        f'    <th style="text-align:left; padding:4px 12px;">Subset</th>',
+    ]
+    for k in col_labels:
+        color = kind_colors.get(k, "#6c757d")
+        html.append(f'    <th style="text-align:right; padding:4px 12px; color:{color};">${k}$</th>')
+    html += ['  </tr></thead>', '  <tbody>']
+
+    for label, (_, vals) in zip(subset_labels, rows):
+        html.append(f'    <tr style="border-bottom:1px solid #f0f0f0;">')
+        html.append(f'      <td style="padding:3px 12px; color:#0056b3;">{label}</td>')
+        for v in vals:
+            html.append(f'      <td style="padding:3px 12px; text-align:right;">{v:.4f}</td>')
+        html.append(f'    </tr>')
+
+    html += ['  </tbody>', '</table>']
+    return "\n".join(html)
+
+
+def _display_all_latex(col_labels, subset_labels, rows):
+    n_cols = 1 + len(col_labels)
+    col_spec = "l" + "r" * len(col_labels)
+    header = "Subset & " + " & ".join(f"${k}$" for k in col_labels) + " \\\\"
+
+    def _latex_label(label):
+        if label == "∅":
+            return "$\\emptyset$"
+        # {a, h} → $\{a, h\}$
+        return "$\\{" + label[1:-1] + "\\}$"
+
+    lines = [
+        f"\\begin{{tabular}}{{{col_spec}}}",
+        "\\hline",
+        header,
+        "\\hline",
+    ]
+    for label, (_, vals) in zip(subset_labels, rows):
+        row = _latex_label(label) + " & " + " & ".join(f"{v:.4f}" for v in vals) + " \\\\"
+        lines.append(row)
+    lines += ["\\hline", "\\end{tabular}"]
     return "\n".join(lines)

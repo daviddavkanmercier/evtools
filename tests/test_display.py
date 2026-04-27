@@ -228,3 +228,121 @@ class TestDisplayMethod:
                 result = v.display(fmt)
                 assert isinstance(result, str)
                 assert len(result) > 0
+
+
+# ---------------------------------------------------------------------------
+# display_all
+# ---------------------------------------------------------------------------
+
+from evtools.display import display_all
+
+# Non-dogmatic, normal BBA: m(Ω)>0, m(∅)=0  → w only
+M_ND  = DSVector.from_focal(FRAME_AHR, {"a": 0.3, "r": 0.3, "a,h,r": 0.4})
+
+# Subnormal, non-dogmatic: m(∅)>0, m(Ω)>0   → v and w
+M_BOTH = DSVector.from_focal(FRAME_AHR, {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2}, complete=False)
+
+# Subnormal, dogmatic: m(∅)>0, m(Ω)=0        → v only
+M_DOG_SUB = DSVector.from_focal(FRAME_AHR, {"": 0.1, "a": 0.5, "r": 0.4}, complete=False)
+
+# Normal, dogmatic: m(∅)=0, m(Ω)=0           → neither v nor w
+M_DOG = DSVector.from_focal(FRAME_AHR, {"a": 0.6, "r": 0.4}, complete=False)
+
+
+def _has_col(m, col, fmt="plain"):
+    """Check whether column `col` appears in the header line of display_all."""
+    for line in display_all(m, fmt).split("\n"):
+        if "Subset" in line:
+            return col in line.split()
+    return False
+
+
+class TestDisplayAll:
+
+    # --- column selection rules ---
+
+    def test_v_shown_only_when_subnormal(self):
+        """v appears iff m(∅) > 0."""
+        assert not _has_col(M_ND,  "v"), "v should be absent for normal BBA"
+        assert     _has_col(M_BOTH, "v"), "v should be present for subnormal BBA"
+        assert     _has_col(M_DOG_SUB, "v"), "v should be present for subnormal dogmatic BBA"
+        assert not _has_col(M_DOG,  "v"), "v should be absent for normal dogmatic BBA"
+
+    def test_w_shown_only_when_nondogmatic(self):
+        """w appears iff m(Ω) > 0."""
+        assert     _has_col(M_ND,  "w"), "w should be present for non-dogmatic BBA"
+        assert     _has_col(M_BOTH, "w"), "w should be present for non-dogmatic subnormal BBA"
+        assert not _has_col(M_DOG_SUB, "w"), "w should be absent for dogmatic BBA"
+        assert not _has_col(M_DOG,  "w"), "w should be absent for dogmatic BBA"
+
+    def test_always_shows_m_bel_pl_b_q(self):
+        for m in [M, M_ND, M_BOTH, M_DOG_SUB, M_DOG]:
+            for col in ["m", "bel", "pl", "b", "q"]:
+                assert _has_col(m, col), f"Column '{col}' missing for {m.kind}"
+
+    # --- formats ---
+
+    def test_plain_no_ansi(self):
+        assert "\033[" not in display_all(M_ND, "plain")
+
+    def test_ansi_has_codes(self):
+        assert "\033[" in display_all(M_ND, "ansi")
+
+    def test_html_table(self):
+        h = display_all(M_ND, "html")
+        assert "<table" in h and "</table>" in h
+
+    def test_html_shows_w_col(self):
+        assert "$w$" in display_all(M_ND, "html")
+
+    def test_html_no_v_when_normal(self):
+        assert "$v$" not in display_all(M_ND, "html")
+
+    def test_latex_tabular(self):
+        l = display_all(M_ND, "latex")
+        assert "\\begin{tabular}" in l and "\\end{tabular}" in l
+
+    def test_latex_shows_w_col(self):
+        assert "$w$" in display_all(M_ND, "latex")
+
+    def test_latex_shows_v_and_w_when_both(self):
+        l = display_all(M_BOTH, "latex")
+        assert "$v$" in l and "$w$" in l
+
+    def test_default_format_is_ansi(self):
+        assert display_all(M) == display_all(M, "ansi")
+
+    def test_unknown_format_raises(self):
+        with pytest.raises(ValueError, match="unknown format"):
+            display_all(M, "pdf")
+
+    def test_wrong_kind_raises(self):
+        with pytest.raises(ValueError, match="kind"):
+            display_all(M.to_bel())
+
+    # --- method on DSVector ---
+
+    def test_display_all_method(self):
+        assert M_ND.display_all("plain") == display_all(M_ND, "plain")
+
+    def test_display_all_method_default(self):
+        assert M_ND.display_all() == display_all(M_ND, "ansi")
+
+    # --- content checks ---
+
+    def test_all_subsets_with_nonzero_values_present(self):
+        p = display_all(M, "plain")
+        assert "{a}" in p
+        assert "{r}" in p
+        assert "∅" in p or "\\emptyset" in p or "∅" in p
+
+    def test_values_correct(self):
+        """m({a})=0.5 and bel({a})=0.5 appear in the table."""
+        p = display_all(M, "plain")
+        assert "0.5000" in p
+
+    def test_all_formats_run_for_all_cases(self):
+        for m in [M, M_ND, M_BOTH, M_DOG_SUB, M_DOG]:
+            for fmt in ["ansi", "plain", "html", "latex"]:
+                result = display_all(m, fmt)
+                assert isinstance(result, str) and len(result) > 0

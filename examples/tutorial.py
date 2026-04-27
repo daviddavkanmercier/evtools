@@ -21,6 +21,7 @@ Sections
 11. Simple MFs            — DSVector.simple, DSVector.negative_simple
     Decombination         — decombine_crc, decombine_drc
 12. Display formats       — ansi, plain, html, latex
+13. display_all           — all representations in one table
 
 References
 ----------
@@ -396,3 +397,44 @@ print(f"{DIM}# via _repr_html_() — no extra call needed{R}")
 print(f"  HTML preview (first 3 lines):")
 for line in repr_html(m).split("\n")[:3]:
     print(f"    {line}")
+
+# ---------------------------------------------------------------------------
+# 14. display_all — all representations in one table
+# ---------------------------------------------------------------------------
+# display_all(m) shows m, bel, pl, b, q in one table.
+# Column v (disjunctive weights) is added automatically if m is subnormal
+# (m(∅) > 0, so that b(A) > 0 for all A ⊆ Ω).
+# Column w (conjunctive weights) is added automatically if m is non-dogmatic
+# (m(Ω) > 0, so that q(A) > 0 for all A ⊂ Ω).
+
+section("14. display_all — all representations in one table")
+
+from evtools.display import display_all
+
+# Normal, dogmatic BBA: m(∅)=0, m(Ω)=0 → only m, bel, pl, b, q
+m_dog = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
+print(f"{DIM}# Normal dogmatic BBA — columns: m, bel, pl, b, q{R}")
+print(display_all(m_dog, "plain"))
+
+# Non-dogmatic BBA: m(Ω)>0 → w column added
+m_nd = DSVector.from_focal(frame, {"a": 0.3, "r": 0.3, "a,h,r": 0.4})
+print(f"\n{DIM}# Non-dogmatic BBA — w column added (m(Ω)={m_nd[frozenset({'a','h','r'})]:.1f}){R}")
+print(display_all(m_nd, "plain"))
+
+# Subnormal BBA: m(∅)>0 → v column added
+m_sub3 = DSVector.from_focal(frame, {"": 0.1, "a": 0.5, "r": 0.4}, complete=False)
+print(f"\n{DIM}# Subnormal dogmatic BBA — v column added (m(∅)={m_sub3[frozenset()]:.1f}){R}")
+print(display_all(m_sub3, "plain"))
+
+# Subnormal non-dogmatic: both v and w
+m_full = DSVector.from_focal(frame, {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2}, complete=False)
+print(f"\n{DIM}# Subnormal non-dogmatic — both v and w columns{R}")
+print(display_all(m_full, "plain"))
+
+# display_all via method
+print(f"\n{DIM}# Via method: m.display_all('plain'){R}")
+print(m_nd.display_all("plain"))
+
+# LaTeX version
+print(f"\n{DIM}# LaTeX output{R}")
+print(display_all(m_nd, "latex"))
