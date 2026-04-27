@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.10.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.11.0.
 
 ## Modules
 
@@ -227,12 +227,29 @@ Low-level conversion functions operating on plain numpy arrays (length `2^n`),
 using the Fast Möbius Transform (Smets 2002). Every conversion is available as
 `<source>to<target>`, e.g. `mtob`, `pltom`, `qtow`, `beltov`, etc.
 
+Also includes conditioning matrices and probability transformations:
+
 ```python
 from evtools.conversions import mtob, mtopl, mtobel, mtoq
+from evtools.conversions import betp, plp
+from evtools.conversions import conditioning_matrix, deconditioning_matrix
 
 m = np.array([0.0, 0.5, 0.0, 0.0, 0.5, 0.0, 0.0, 0.0])
 print(mtoq(m))    # commonality function
 print(mtopl(m))   # plausibility function
+
+# Probability transformations (return np.ndarray of length n, not 2^n)
+print(betp(m))    # pignistic probability BetP (Smets & Kennes 1994)
+print(plp(m))     # plausibility probability PlP (Cobb & Shenoy 2006)
+
+# Equivalently via DSVector methods
+m_vec = DSVector.from_dense(frame, m)
+print(m_vec.to_betp())  # np.ndarray of length n
+print(m_vec.to_plp())
+
+# Conditioning matrices
+CA = conditioning_matrix(frame, frozenset({"a", "h"}))  # 2^n × 2^n
+DA = deconditioning_matrix(frame, frozenset({"a", "h"}))
 ```
 
 Array indices follow the binary ordering of Smets (2002): index `i` corresponds
