@@ -10,6 +10,13 @@ cautious(m1, m2)                  — Cautious conjunctive rule (nondistinct sou
 bold(m1, m2)                      — Bold disjunctive rule (nondistinct sources)
 decombine_crc(m1, m2)             — Conjunctive decombination (inverse of CRC)
 decombine_drc(m1, m2)             — Disjunctive decombination (inverse of DRC)
+condition(m, a)                   — Conditioning on event A
+decondition(m, a)                 — Deconditioning on event A (inverse of conditioning)
+
+Conditioning matrices (see also evtools.conversions)
+----------------------------------------------------
+conditioning_matrix(frame, a)     — Build the C_A specialization matrix
+deconditioning_matrix(frame, a)   — Build the D_A generalization matrix
 
 Operator shortcuts on DSVector
 -------------------------------
@@ -404,3 +411,159 @@ def decombine_drc(m1: DSVector, m2: DSVector) -> DSVector:
             "Decombination requires a non-normal (subnormal) BBA."
         )
     return DSVector.from_dense(m1.frame, btom(b1 / b2), kind=Kind.M)
+
+
+# ---------------------------------------------------------------------------
+# Conditioning and deconditioning
+# ---------------------------------------------------------------------------
+
+def _check_bba(m: DSVector, fn: str) -> None:
+    """Raise ValueError if m is not a BBA (kind != Kind.M)."""
+    if m.kind != Kind.M:
+        raise ValueError(
+            f"{fn}: argument has kind '{m.kind.value}', expected 'm'."
+        )
+
+
+def condition(
+    m: DSVector,
+    a: frozenset,
+    *,
+    method: Literal["sparse", "dense"] = "sparse",
+) -> DSVector:
+    """
+    Dempster's rule of conditioning on A (without normalization).
+
+    Computes the conditional BBA m[A] given that the true value lies in A.
+    This is the least committed BBA that is a specialization of m such that
+    pl[A](Ā) = 0 (Smets 2002, Section 9).
+
+    The conditional BBA satisfies:
+
+        m[A](B) = Σ_{C : C∩A=B} m(C),  ∀B ⊆ A
+
+    All masses with focal sets not contained in A are transferred to their
+    intersection with A. Focal sets disjoint from A contribute to m[A](∅).
+
+    Equivalently in matrix form: m[A] = C_A @ m, where C_A is the
+    conditioning matrix (see conversions.conditioning_matrix).
+
+    Parameters
+    ----------
+    m : DSVector
+        The BBA to condition (kind=Kind.M).
+    a : frozenset
+        The conditioning event A ⊆ Ω. Must be non-empty and a subset of
+        the frame atoms.
+    method : {"sparse", "dense"}
+        "sparse" (default): focal element enumeration, O(k·1).
+        "dense": matrix-vector product via C_A (conversions.conditioning_matrix).
+
+    Returns
+    -------
+    DSVector
+        The conditional BBA m[A], in sparse representation.
+        Note: m[A] may be subnormal if m had focal sets disjoint from A.
+
+    Raises
+    ------
+    ValueError
+        If m is not a BBA, or if A is empty or not a subset of the frame.
+
+    References
+    ----------
+    Smets, P. (2002). The application of the matrix calculus to belief
+    functions. IJAR, 31(1-2), 1-30. Section 9.
+    """
+    _check_bba(m, "condition")
+    omega = set(m.frame)
+    if not a:
+        raise ValueError("condition: conditioning event A cannot be empty.")
+    if not set(a) <= omega:
+        raise ValueError(
+            f"condition: atoms {set(a) - omega} are not in the frame {m.frame}."
+        )
+
+    if method == "dense":
+        from .conversions import conditioning_matrix
+        C = conditioning_matrix(m.frame, a)
+        return DSVector.from_dense(m.frame, C @ m.dense, kind=Kind.M)
+
+    result: dict[frozenset, float] = {}
+    for focal, value in m.sparse.items():
+        b = focal & a  # intersection with A
+        result[b] = result.get(b, 0.0) + value
+
+    result = {k: v for k, v in result.items() if abs(v) > ZERO_MASS}
+    return DSVector.from_sparse(m.frame, result, kind=Kind.M)
+
+
+def decondition(
+    m: DSVector,
+    a: frozenset,
+    *,
+    method: Literal["sparse", "dense"] = "sparse",
+) -> DSVector:
+    """
+    Deconditioning on A — inverse of Dempster's rule of conditioning.
+
+    Given a BBA m that was obtained by conditioning an unknown BBA on A,
+    computes the least committed generalization m* such that pl*(Ā) = 1
+    (Smets 2002, Section 9).
+
+    The deconditioned BBA satisfies:
+
+        m*(B ∪ Ā) = m(B),  ∀B ⊆ A
+
+    where Ā = Ω \\ A. Each focal element B ⊆ A is transferred to B ∪ Ā.
+
+    Equivalently in matrix form: m* = D_A @ m, where D_A is the
+    deconditioning matrix (see conversions.deconditioning_matrix).
+
+    Parameters
+    ----------
+    m : DSVector
+        The BBA to decondition (kind=Kind.M).
+    a : frozenset
+        The conditioning event A ⊆ Ω that was used originally.
+    method : {"sparse", "dense"}
+        "sparse" (default): focal element enumeration, O(k).
+        "dense": matrix-vector product via D_A (conversions.deconditioning_matrix).
+
+    Returns
+    -------
+    DSVector
+        The deconditioned BBA m*, in sparse representation.
+
+    Raises
+    ------
+    ValueError
+        If m is not a BBA, or if A is empty or not a subset of the frame.
+
+    References
+    ----------
+    Smets, P. (2002). The application of the matrix calculus to belief
+    functions. IJAR, 31(1-2), 1-30. Section 9.
+    """
+    _check_bba(m, "decondition")
+    omega = set(m.frame)
+    if not a:
+        raise ValueError("decondition: conditioning event A cannot be empty.")
+    if not set(a) <= omega:
+        raise ValueError(
+            f"decondition: atoms {set(a) - omega} are not in the frame {m.frame}."
+        )
+
+    if method == "dense":
+        from .conversions import deconditioning_matrix
+        D = deconditioning_matrix(m.frame, a)
+        return DSVector.from_dense(m.frame, D @ m.dense, kind=Kind.M)
+
+    a_bar = frozenset(omega - set(a))  # complement Ā = Ω \ A
+    result: dict[frozenset, float] = {}
+    for focal, value in m.sparse.items():
+        new_focal = focal | a_bar  # B ∪ Ā
+        result[new_focal] = result.get(new_focal, 0.0) + value
+
+    result = {k: v for k, v in result.items() if abs(v) > ZERO_MASS}
+    return DSVector.from_sparse(m.frame, result, kind=Kind.M)

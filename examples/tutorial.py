@@ -22,6 +22,7 @@ Sections
     Decombination         — decombine_crc, decombine_drc
 12. Display formats       — ansi, plain, html, latex
 13. display_all           — all representations in one table
+14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
 
 References
 ----------
@@ -438,3 +439,56 @@ print(m_nd.display_all("plain"))
 # LaTeX version
 print(f"\n{DIM}# LaTeX output{R}")
 print(display_all(m_nd, "latex"))
+
+# ---------------------------------------------------------------------------
+# 15. Conditioning and deconditioning
+# ---------------------------------------------------------------------------
+# Conditioning m on A gives the least committed specialization of m such
+# that the complement Ā becomes impossible (pl(Ā) = 0).
+# Deconditioning is the inverse: restores the least committed generalization.
+#
+# Two implementations: sparse (default, O(k)) and dense (O(2^n) via C_A/D_A).
+
+section("15. Conditioning and deconditioning")
+
+from evtools.combinations import condition, decondition
+from evtools.conversions import conditioning_matrix, deconditioning_matrix
+
+m_base = DSVector.from_focal(frame, {"a": 0.3, "h": 0.2, "a,h": 0.1, "a,h,r": 0.4})
+A = frozenset({"a", "h"})
+
+print(f"{DIM}# Original BBA{R}")
+print(m_base)
+
+print(f"\n{DIM}# Conditioning on A = {{a, h}}{R}")
+print(f"{DIM}# m[A](B) = Σ_{{C∩A=B}} m(C){R}\n")
+m_cond = condition(m_base, A)
+print(m_cond)
+
+print(f"\n{DIM}# Deconditioning — B → B ∪ Ā = B ∪ {{r}}{R}\n")
+m_decond = decondition(m_cond, A)
+print(m_decond)
+
+# Round-trip: condition(decondition(m[A], A), A) == m[A]
+ok = np.allclose(condition(m_decond, A).dense, m_cond.dense, atol=1e-10)
+print(f"\n  condition(decondition(m[A], A), A) == m[A] :  {GREEN}✓ OK{R}" if ok else f"  {RED}✗ MISMATCH{R}")
+
+# Sparse vs dense
+ok2 = np.allclose(
+    condition(m_base, A, method="sparse").dense,
+    condition(m_base, A, method="dense").dense, atol=1e-10)
+print(f"  sparse == dense :  {GREEN}✓ OK{R}" if ok2 else f"  {RED}✗ MISMATCH{R}")
+
+# Conditioning matrices C_A and D_A
+print(f"\n{DIM}# Conditioning matrix C_A (2^n × 2^n specialization matrix){R}")
+CA = conditioning_matrix(frame, A)
+print(f"  Shape: {CA.shape},  column sums = 1: {np.allclose(CA.sum(axis=0), 1.0)}")
+
+print(f"\n{DIM}# Deconditioning matrix D_A (2^n × 2^n generalization matrix){R}")
+DA = deconditioning_matrix(frame, A)
+print(f"  Shape: {DA.shape},  column sums = 1: {np.allclose(DA.sum(axis=0), 1.0)}")
+
+print(f"\n{DIM}# C_A @ m matches sparse result{R}")
+m_via_matrix = DSVector.from_dense(frame, CA @ m_base.dense)
+ok3 = np.allclose(m_via_matrix.dense, m_cond.dense, atol=1e-10)
+print(f"  C_A @ m == condition(m, A) :  {GREEN}✓ OK{R}" if ok3 else f"  {RED}✗ MISMATCH{R}")

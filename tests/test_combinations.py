@@ -389,3 +389,159 @@ def test_simple_beta_out_of_range_raises():
 def test_negative_simple_beta_out_of_range_raises():
     with pytest.raises(ValueError, match="beta"):
         DSVector.negative_simple(FRAME_AHR, frozenset({"a"}), beta=-0.1)
+
+
+# ===========================================================================
+# condition and decondition
+# ===========================================================================
+
+from evtools.combinations import condition, decondition
+from evtools.conversions import conditioning_matrix, deconditioning_matrix
+
+FRAME_AHR_C = ["a", "h", "r"]
+
+# m({a})=0.3, m({h})=0.2, m({a,h})=0.1, m({a,h,r})=0.4
+M_COND = DSVector.from_focal(FRAME_AHR_C, {"a": 0.3, "h": 0.2, "a,h": 0.1, "a,h,r": 0.4})
+A_AH   = frozenset({"a", "h"})
+
+
+class TestCondition:
+
+    def test_known_result(self):
+        # m[{a,h}]({a})   = m({a})               = 0.3
+        # m[{a,h}]({h})   = m({h})               = 0.2
+        # m[{a,h}]({a,h}) = m({a,h}) + m({a,h,r})= 0.1 + 0.4 = 0.5
+        m_c = condition(M_COND, A_AH)
+        assert np.isclose(m_c[frozenset({"a"})],     0.3)
+        assert np.isclose(m_c[frozenset({"h"})],     0.2)
+        assert np.isclose(m_c[frozenset({"a","h"})], 0.5)
+
+    def test_sums_to_one(self):
+        assert np.isclose(sum(condition(M_COND, A_AH).sparse.values()), 1.0)
+
+    def test_no_focal_outside_A(self):
+        m_c = condition(M_COND, A_AH)
+        for subset in m_c.sparse:
+            assert subset <= A_AH or subset == frozenset(), \
+                f"Focal element {set(subset)} not in A∪{{∅}}"
+
+    def test_sparse_dense_match(self):
+        assert np.allclose(
+            condition(M_COND, A_AH, method="sparse").dense,
+            condition(M_COND, A_AH, method="dense").dense,
+            atol=1e-10
+        )
+
+    def test_dense_equals_matrix_product(self):
+        CA = conditioning_matrix(FRAME_AHR_C, A_AH)
+        m_matrix = DSVector.from_dense(FRAME_AHR_C, CA @ M_COND.dense)
+        assert np.allclose(
+            m_matrix.dense,
+            condition(M_COND, A_AH, method="sparse").dense,
+            atol=1e-10
+        )
+
+    def test_condition_on_omega_unchanged(self):
+        omega = frozenset(FRAME_AHR_C)
+        assert np.allclose(condition(M_COND, omega).dense, M_COND.dense, atol=1e-10)
+
+    def test_empty_A_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            condition(M_COND, frozenset())
+
+    def test_unknown_atom_raises(self):
+        with pytest.raises(ValueError, match="frame"):
+            condition(M_COND, frozenset({"z"}))
+
+    def test_wrong_kind_raises(self):
+        with pytest.raises(ValueError, match="kind"):
+            condition(M_COND.to_bel(), A_AH)
+
+    def test_kind_m(self):
+        assert condition(M_COND, A_AH).kind == Kind.M
+
+
+class TestDecondition:
+
+    def test_known_result(self):
+        # decondition(m[A], A): B → B ∪ Ā = B ∪ {r}
+        # {a}   → {a, r}
+        # {h}   → {h, r}
+        # {a,h} → {a, h, r}
+        m_c = condition(M_COND, A_AH)
+        m_d = decondition(m_c, A_AH)
+        assert np.isclose(m_d[frozenset({"a","r"})],     0.3)
+        assert np.isclose(m_d[frozenset({"h","r"})],     0.2)
+        assert np.isclose(m_d[frozenset({"a","h","r"})], 0.5)
+
+    def test_sums_to_one(self):
+        m_c = condition(M_COND, A_AH)
+        assert np.isclose(sum(decondition(m_c, A_AH).sparse.values()), 1.0)
+
+    def test_sparse_dense_match(self):
+        m_c = condition(M_COND, A_AH)
+        assert np.allclose(
+            decondition(m_c, A_AH, method="sparse").dense,
+            decondition(m_c, A_AH, method="dense").dense,
+            atol=1e-10
+        )
+
+    def test_dense_equals_matrix_product(self):
+        m_c = condition(M_COND, A_AH)
+        DA = deconditioning_matrix(FRAME_AHR_C, A_AH)
+        m_matrix = DSVector.from_dense(FRAME_AHR_C, DA @ m_c.dense)
+        assert np.allclose(
+            m_matrix.dense,
+            decondition(m_c, A_AH, method="sparse").dense,
+            atol=1e-10
+        )
+
+    def test_round_trip(self):
+        # condition(decondition(m[A], A), A) == m[A]
+        m_c = condition(M_COND, A_AH)
+        assert np.allclose(
+            condition(decondition(m_c, A_AH), A_AH).dense,
+            m_c.dense,
+            atol=1e-10
+        )
+
+    def test_empty_A_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            decondition(M_COND, frozenset())
+
+    def test_kind_m(self):
+        assert decondition(condition(M_COND, A_AH), A_AH).kind == Kind.M
+
+
+class TestConditioningMatrices:
+
+    def test_conditioning_matrix_shape(self):
+        CA = conditioning_matrix(FRAME_AHR_C, A_AH)
+        assert CA.shape == (8, 8)
+
+    def test_deconditioning_matrix_shape(self):
+        DA = deconditioning_matrix(FRAME_AHR_C, A_AH)
+        assert DA.shape == (8, 8)
+
+    def test_CA_is_specialization(self):
+        # Column sums = 1 (stochastic matrix)
+        CA = conditioning_matrix(FRAME_AHR_C, A_AH)
+        assert np.allclose(CA.sum(axis=0), 1.0)
+
+    def test_DA_is_generalization(self):
+        # Column sums = 1 (stochastic matrix)
+        DA = deconditioning_matrix(FRAME_AHR_C, A_AH)
+        assert np.allclose(DA.sum(axis=0), 1.0)
+
+    def test_CA_nonnegative(self):
+        assert np.all(conditioning_matrix(FRAME_AHR_C, A_AH) >= 0)
+
+    def test_DA_nonnegative(self):
+        assert np.all(deconditioning_matrix(FRAME_AHR_C, A_AH) >= 0)
+
+    def test_CA_DA_round_trip(self):
+        # CA @ DA maps every column to the same column after repass through CA
+        CA = conditioning_matrix(FRAME_AHR_C, A_AH)
+        DA = deconditioning_matrix(FRAME_AHR_C, A_AH)
+        # CA @ DA @ CA == CA (CA is idempotent under DA)
+        assert np.allclose(CA @ DA @ CA, CA, atol=1e-10)

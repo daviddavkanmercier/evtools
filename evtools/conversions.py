@@ -21,6 +21,11 @@ This ordering is essential for the Fast Möbius Transform (FMT) algorithm
 that underlies all conversions in this module. See Smets (2002, Section 3)
 for the full derivation and MatLab code.
 
+Conditioning matrices
+---------------------
+conditioning_matrix(frame, a)    — C_A specialization matrix for conditioning on A
+deconditioning_matrix(frame, a)  — D_A generalization matrix for deconditioning on A
+
 Supported representations:
     - m   : Basic Belief Assignment (mass function)
     - b   : implicability function,  b(A) = Σ_{B⊆A} m(B)
@@ -345,3 +350,94 @@ def wtoq(w: np.ndarray) -> np.ndarray:
 def wtov(w: np.ndarray) -> np.ndarray:
     """Convert conjunctive weight function *w* to disjunctive weight function *v*."""
     return qtov(wtoq(w))
+
+
+# ---------------------------------------------------------------------------
+# Conditioning and deconditioning matrices (Smets 2002, Section 9)
+# ---------------------------------------------------------------------------
+
+def conditioning_matrix(frame: list, a: frozenset) -> np.ndarray:
+    """
+    Build the Dempster conditioning matrix C_A for event A.
+
+    C_A is a 2^n × 2^n specialization matrix (Smets 2002, Section 9)
+    such that m[A] = C_A @ m, where m[A] is the BBA conditioned on A.
+
+    The matrix entries are:
+
+        C_A(B, C) = 1  if B = C ∩ A
+        C_A(B, C) = 0  otherwise
+
+    In terms of binary indices: C_A[i, j] = 1 iff i == (j & a_mask),
+    where a_mask is the bitmask of A in the binary index ordering.
+
+    Parameters
+    ----------
+    frame : list[str]
+        Ordered list of atoms defining the binary index ordering.
+    a : frozenset
+        The conditioning event A ⊆ Ω.
+
+    Returns
+    -------
+    np.ndarray
+        Square matrix of shape (2^n, 2^n).
+
+    References
+    ----------
+    Smets, P. (2002). IJAR, 31(1-2), 1-30. Section 9.
+    """
+    n = len(frame)
+    size = 2 ** n
+    a_mask = sum(1 << k for k, atom in enumerate(frame) if atom in a)
+    C = np.zeros((size, size), dtype=float)
+    for j in range(size):
+        i = j & a_mask   # B = C ∩ A
+        C[i, j] = 1.0
+    return C
+
+
+def deconditioning_matrix(frame: list, a: frozenset) -> np.ndarray:
+    """
+    Build the deconditioning matrix D_A for event A.
+
+    D_A is a 2^n × 2^n generalization matrix (Smets 2002, Section 9)
+    such that m* = D_A @ m, where m* is the least committed BBA whose
+    conditioning on A yields m.
+
+    The matrix entries are:
+
+        D_A(B, C) = 1  if B = C ∪ Ā
+        D_A(B, C) = 0  otherwise
+
+    where Ā = Ω \\ A. In terms of binary indices: D_A[i, j] = 1 iff
+    i == (j | abar_mask), where abar_mask is the bitmask of Ā.
+
+    Equivalently: D_A = J · C_A · J (Smets 2002, Theorem 7.4).
+
+    Parameters
+    ----------
+    frame : list[str]
+        Ordered list of atoms defining the binary index ordering.
+    a : frozenset
+        The conditioning event A ⊆ Ω.
+
+    Returns
+    -------
+    np.ndarray
+        Square matrix of shape (2^n, 2^n).
+
+    References
+    ----------
+    Smets, P. (2002). IJAR, 31(1-2), 1-30. Section 9.
+    """
+    n = len(frame)
+    size = 2 ** n
+    omega_mask = size - 1
+    a_mask = sum(1 << k for k, atom in enumerate(frame) if atom in a)
+    abar_mask = omega_mask & ~a_mask  # Ā = Ω \ A
+    D = np.zeros((size, size), dtype=float)
+    for j in range(size):
+        i = j | abar_mask   # B = C ∪ Ā
+        D[i, j] = 1.0
+    return D

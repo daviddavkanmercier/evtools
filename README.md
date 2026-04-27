@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.9.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.10.0.
 
 ## Modules
 
@@ -118,6 +118,16 @@ m12 = bold(m1, m2)       # Bold disjunctive rule, nondistinct possibly unreliabl
 # Decombination — inverse operations (result may not be valid, check .is_valid)
 m1 = decombine_crc(m12, m2)  # m12 6∩ m2 — removes m2 from a conjunctive combination
 m1 = decombine_drc(m12, m2)  # m12 6∪ m2 — removes m2 from a disjunctive combination
+
+# Conditioning and deconditioning (Smets 2002, Section 9)
+A  = frozenset({"a", "h"})
+m_cond   = condition(m, A)             # m[A]: B → B ∩ A
+m_decond = decondition(m_cond, A)      # m*:   B → B ∪ Ā
+
+# Conditioning matrices (dense mode)
+from evtools.conversions import conditioning_matrix, deconditioning_matrix
+CA = conditioning_matrix(frame, A)     # 2^n × 2^n specialization matrix
+DA = deconditioning_matrix(frame, A)   # 2^n × 2^n generalization matrix
 ```
 
 Choice of rule:
