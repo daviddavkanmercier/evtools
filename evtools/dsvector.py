@@ -528,6 +528,65 @@ class DSVector:
         result_dense = _CONVERT[key](self.dense)
         return DSVector.from_dense(self._frame, result_dense, kind=kind)
 
+    def to_betp(self) -> np.ndarray:
+        """
+        Pignistic probability transformation (BetP).
+
+        Returns a probability vector of length n (one value per atom),
+        not a DSVector. The BBA must not be fully contradictory (m(∅) < 1).
+
+        Returns
+        -------
+        np.ndarray
+            BetP vector of length n = len(self.frame).
+
+        Raises
+        ------
+        ValueError
+            If the BBA is of wrong kind, or if m(∅) = 1.
+
+        References
+        ----------
+        Smets, P., Kennes, R. (1994). Artificial Intelligence, 66(2), 191-234.
+        """
+        if self._kind != Kind.M:
+            raise ValueError(
+                f"to_betp: kind is '{self._kind.value}', expected 'm'. "
+                "Convert with .to_m() first."
+            )
+        from .conversions import betp
+        return betp(self.dense)
+
+    def to_plp(self) -> np.ndarray:
+        """
+        Plausibility probability transformation (PlP).
+
+        Returns a probability vector of length n (one value per atom),
+        not a DSVector, by normalizing the plausibility of singletons.
+
+        Returns
+        -------
+        np.ndarray
+            PlP vector of length n = len(self.frame).
+
+        Raises
+        ------
+        ValueError
+            If the BBA is of wrong kind, or if all singleton plausibilities
+            are zero.
+
+        References
+        ----------
+        Cobb, B.R., Shenoy, P.P. (2006). IJAR, 41(3), 314-330.
+        """
+        if self._kind != Kind.M:
+            raise ValueError(
+                f"to_plp: kind is '{self._kind.value}', expected 'm'. "
+                "Convert with .to_m() first."
+            )
+        from .conversions import plp
+        return plp(self.dense)
+
     def to_m(self)   -> "DSVector":
         """Convert to mass function (Kind.M)."""
         return self.to(Kind.M)

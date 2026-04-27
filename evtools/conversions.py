@@ -26,6 +26,11 @@ Conditioning matrices
 conditioning_matrix(frame, a)    — C_A specialization matrix for conditioning on A
 deconditioning_matrix(frame, a)  — D_A generalization matrix for deconditioning on A
 
+Probability transformations
+---------------------------
+betp(m)   — Pignistic probability BetP (vector of length n)
+plp(m)    — Plausibility probability PlP (vector of length n)
+
 Supported representations:
     - m   : Basic Belief Assignment (mass function)
     - b   : implicability function,  b(A) = Σ_{B⊆A} m(B)
@@ -47,6 +52,7 @@ References:
     Intelligence, 172, 234-264.
 """
 import numpy as np
+from .constants import ZERO_MASS
 
 
 # ---------------------------------------------------------------------------
@@ -441,3 +447,121 @@ def deconditioning_matrix(frame: list, a: frozenset) -> np.ndarray:
         i = j | abar_mask   # B = C ∪ Ā
         D[i, j] = 1.0
     return D
+
+
+# ---------------------------------------------------------------------------
+# Pignistic and plausibility probability transformations
+# ---------------------------------------------------------------------------
+
+def betp(m: np.ndarray) -> np.ndarray:
+    """
+    Pignistic probability transformation (BetP).
+
+    Transforms a BBA m into a probability distribution over the n atoms
+    of the frame, following the Transferable Belief Model decision rule
+    (Smets & Kennes 1994).
+
+    The pignistic probability of singleton {x} is:
+
+        BetP({x}) = Σ_{A ∋ x} m(A) / (|A| · (1 − m(∅)))
+
+    The result is a vector of length n (one value per atom), not 2^n.
+    It sums to 1 when the BBA is not fully contradictory (m(∅) < 1).
+
+    Parameters
+    ----------
+    m : np.ndarray
+        Dense BBA vector of length 2^n, in binary index ordering.
+        m[0] = m(∅).
+
+    Returns
+    -------
+    np.ndarray
+        Probability vector of length n, one entry per atom.
+
+    Raises
+    ------
+    ValueError
+        If m(∅) = 1 (fully contradictory BBA — BetP is undefined).
+
+    References
+    ----------
+    Smets, P., Kennes, R. (1994). The transferable belief model.
+    Artificial Intelligence, 66(2), 191-234.
+    Smets, P. (2002). IJAR, 31(1-2), 1-30. Section 4.
+    """
+    conflict = m[0]
+    if np.isclose(conflict, 1.0):
+        raise ValueError(
+            "betp: m(∅) = 1 (fully contradictory BBA). "
+            "BetP is undefined in this case."
+        )
+
+    size = len(m)
+    n = int(np.log2(size))
+    result = np.zeros(n)
+    norm = 1.0 - conflict
+
+    for i in range(size):
+        if abs(m[i]) < ZERO_MASS or i == 0:
+            continue
+        # Cardinality of subset i: number of 1-bits
+        cardinality = bin(i).count("1")
+        mass_share = m[i] / (cardinality * norm)
+        # Distribute equally to all atoms in the subset
+        for k in range(n):
+            if i >> k & 1:
+                result[k] += mass_share
+
+    return result
+
+
+def plp(m: np.ndarray) -> np.ndarray:
+    """
+    Plausibility probability transformation (PlP).
+
+    Transforms a BBA m into a probability distribution over the n atoms
+    of the frame by normalizing the plausibility of singletons.
+
+    The plausibility probability of singleton {x} is:
+
+        PlP({x}) = pl({x}) / Σ_{y ∈ Ω} pl({y})
+
+    The result is a vector of length n (one value per atom), summing to 1.
+
+    Parameters
+    ----------
+    m : np.ndarray
+        Dense BBA vector of length 2^n, in binary index ordering.
+
+    Returns
+    -------
+    np.ndarray
+        Probability vector of length n, one entry per atom.
+
+    Raises
+    ------
+    ValueError
+        If all singleton plausibilities are zero (degenerate BBA).
+
+    References
+    ----------
+    Cobb, B.R., Shenoy, P.P. (2006). On the plausibility transformation
+    method for translating belief function models to probability models.
+    International Journal of Approximate Reasoning, 41(3), 314-330.
+    """
+    size = len(m)
+    n = int(np.log2(size))
+    pl = mtopl(m)
+
+    # pl of singletons: indices 1, 2, 4, 8, ... (powers of 2)
+    singleton_pl = np.array([pl[1 << k] for k in range(n)])
+    total = singleton_pl.sum()
+
+    if np.isclose(total, 0.0):
+        raise ValueError(
+            "plp: all singleton plausibilities are zero. "
+            "PlP is undefined for this BBA."
+        )
+
+    return singleton_pl / total

@@ -23,6 +23,7 @@ Sections
 12. Display formats       — ansi, plain, html, latex
 13. display_all           — all representations in one table
 14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
+15. BetP and PlP          — pignistic and plausibility probability transformations
 
 References
 ----------
@@ -492,3 +493,42 @@ print(f"\n{DIM}# C_A @ m matches sparse result{R}")
 m_via_matrix = DSVector.from_dense(frame, CA @ m_base.dense)
 ok3 = np.allclose(m_via_matrix.dense, m_cond.dense, atol=1e-10)
 print(f"  C_A @ m == condition(m, A) :  {GREEN}✓ OK{R}" if ok3 else f"  {RED}✗ MISMATCH{R}")
+
+# ---------------------------------------------------------------------------
+# 16. Pignistic and plausibility probability transformations
+# ---------------------------------------------------------------------------
+# BetP and PlP transform a BBA into a probability vector of length n
+# (one value per atom), used for decision making in the TBM.
+#
+# BetP({x}) = Σ_{A∋x} m(A) / (|A| · (1 − m(∅)))   (Smets & Kennes 1994)
+# PlP({x})  = pl({x}) / Σ_{y∈Ω} pl({y})             (Cobb & Shenoy 2006)
+
+section("16. Pignistic and plausibility probability transformations")
+
+from evtools.conversions import betp, plp
+
+m_demo = DSVector.from_focal(frame, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+print(f"{DIM}# BBA{R}")
+print(m_demo)
+
+print(f"\n{DIM}# BetP — pignistic transformation{R}")
+bp = m_demo.to_betp()
+for atom, val in zip(frame, bp):
+    print(f"  BetP({{{atom}}}) = {val:.4f}")
+print(f"  Sum = {bp.sum():.4f}")
+
+print(f"\n{DIM}# PlP — plausibility probability{R}")
+pp = m_demo.to_plp()
+for atom, val in zip(frame, pp):
+    print(f"  PlP({{{atom}}}) = {val:.4f}")
+print(f"  Sum = {pp.sum():.4f}")
+
+print(f"\n{DIM}# Special cases{R}")
+m_vac = DSVector.from_focal(frame, {})
+print(f"  Vacuous BBA → BetP = {m_vac.to_betp().round(4)} (uniform)")
+m_cat = DSVector.from_focal(frame, {"a": 1.0})
+print(f"  Categorical m({{a}})=1 → BetP = {m_cat.to_betp().round(4)}")
+
+print(f"\n{DIM}# Note: result is a numpy array of length n={len(frame)}, not a DSVector{R}")
+print(f"  type(m.to_betp()) = {type(m_demo.to_betp())}")
+print(f"  len(m.to_betp())  = {len(m_demo.to_betp())}")
