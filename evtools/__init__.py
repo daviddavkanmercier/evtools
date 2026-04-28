@@ -29,9 +29,6 @@ evtools.display
 evtools.constants
     Numerical tolerance constants used throughout the library.
 
-: discounting, reinforcement, negating and
-    their contextual and inverse variants.
-
 Usage
 -----
     from evtools.dsvector import DSVector, Kind

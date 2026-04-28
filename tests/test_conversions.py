@@ -72,7 +72,7 @@ FRAME_AHR = ["a", "h", "r"]
 M_CAT = DSVector.from_focal(FRAME_AHR, {"a": 1.0})
 M_VAC = DSVector.from_focal(FRAME_AHR, {})
 M     = DSVector.from_focal(FRAME_AHR, {"a": 0.5, "r": 0.5})
-M2    = DSVector.from_focal(FRAME_AHR, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+M2_DS = DSVector.from_focal(FRAME_AHR, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
 M_CONFLICT = DSVector.from_sparse(FRAME_AHR, {frozenset(): 1.0})
 
 
@@ -99,13 +99,13 @@ class TestBetP:
         # BetP({a}) = 0.3 + 0.4/2 + 0.3/3 = 0.6
         # BetP({h}) =        0.4/2 + 0.3/3 = 0.3
         # BetP({r}) =               0.3/3   = 0.1
-        bp = M2.to_betp()
+        bp = M2_DS.to_betp()
         assert np.isclose(bp[0], 0.6)
         assert np.isclose(bp[1], 0.3)
         assert np.isclose(bp[2], 0.1)
 
     def test_sums_to_one(self):
-        for m in [M_CAT, M_VAC, M, M2]:
+        for m in [M_CAT, M_VAC, M, M2_DS]:
             assert np.isclose(m.to_betp().sum(), 1.0)
 
     def test_returns_ndarray_of_length_n(self):
@@ -122,13 +122,13 @@ class TestBetP:
             M.to_bel().to_betp()
 
     def test_standalone_matches_method(self):
-        assert np.allclose(betp(M2.dense), M2.to_betp())
+        assert np.allclose(betp(M2_DS.dense), M2_DS.to_betp())
 
 
 class TestPlP:
 
     def test_sums_to_one(self):
-        for m in [M_CAT, M_VAC, M, M2]:
+        for m in [M_CAT, M_VAC, M, M2_DS]:
             assert np.isclose(m.to_plp().sum(), 1.0)
 
     def test_categorical(self):
@@ -152,7 +152,7 @@ class TestPlP:
             M.to_bel().to_plp()
 
     def test_standalone_matches_method(self):
-        assert np.allclose(plp(M2.dense), M2.to_plp())
+        assert np.allclose(plp(M2_DS.dense), M2_DS.to_plp())
 
     def test_nonnegative(self):
-        assert np.all(M2.to_plp() >= 0)
+        assert np.all(M2_DS.to_plp() >= 0)

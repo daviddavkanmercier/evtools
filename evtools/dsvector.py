@@ -608,11 +608,11 @@ class DSVector:
         return self.to(Kind.Q)
 
     def to_v(self)   -> "DSVector":
-        """Convert to disjunctive weight function (Kind.V). Requires subnormal BBA."""
+        """Convert to disjunctive weight function (Kind.V). Requires subnormal BBA (m(∅) > 0)."""
         return self.to(Kind.V)
 
     def to_w(self)   -> "DSVector":
-        """Convert to conjunctive weight function (Kind.W). Requires subnormal BBA."""
+        """Convert to conjunctive weight function (Kind.W). Requires non-dogmatic BBA (m(Ω) > 0)."""
         return self.to(Kind.W)
 
     # ------------------------------------------------------------------
