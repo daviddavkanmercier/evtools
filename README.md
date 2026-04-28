@@ -77,8 +77,8 @@ pl  = m.to(Kind.PL)   # returns a new DSVector with kind=Kind.PL
 bel = m.to_bel()      # shortcut
 b   = m.to_b()        # commonality
 q   = m.to_q()        # implicability
-v   = m.to_v()        # disjunctive weights (requires subnormal BBA)
-w   = m.to_w()        # conjunctive weights (requires subnormal BBA)
+v   = m.to_v()        # disjunctive weights (requires subnormal BBA, m(∅) > 0)
+w   = m.to_w()        # conjunctive weights (requires non-dogmatic BBA, m(Ω) > 0)
 ```
 
 ### Accessing values
@@ -200,6 +200,43 @@ theta_contextual_discount(m, β)         [general Θ partition]
 
 ---
 
+## `evtools.decision`
+
+Decision criteria for selecting an act from a BBA. Two families:
+
+- **Complete preference relations** return a single optimal act `(index, atom)`.
+- **Partial preference relations** return a `frozenset[str]` of non-dominated atoms.
+
+```python
+from evtools.decision import (
+    maximin, maximax, pignistic_decision, hurwicz,
+    strong_dominance, weak_dominance,
+)
+
+# Complete preference relations — return (index, atom)
+maximin(m)             # pessimistic: max lower expected utility
+maximax(m)             # optimistic:  max upper expected utility
+pignistic_decision(m)  # MEU with BetP (Smets pignistic)
+hurwicz(m, alpha=0.5)  # convex combination of maximin and maximax
+
+# With a custom utility matrix U of shape (n, n)
+import numpy as np
+U = np.array([[1, 0, 0],
+              [0, 2, 0],
+              [0, 0, 1]])  # u(a_i, ω_j)
+maximin(m, U)
+
+# Partial preference relations — return frozenset of non-dominated atoms
+strong_dominance(m)    # ω ≻ ω'  ⟺  Bel({ω}) ≥ Pl({ω'})
+weak_dominance(m)      # ω ≻ ω'  ⟺  Bel({ω}) ≥ Bel({ω'}) and Pl({ω}) ≥ Pl({ω'})
+```
+
+Default utility (when `U` is omitted) is the identity matrix (0-1 utility, the
+standard classification setting). With identity utility, `pignistic_decision`
+returns the atom with maximum BetP.
+
+---
+
 ## `evtools.display`
 
 Four output formats, all adapting the column header to the kind (`m`, `bel`, `pl`, ...).
@@ -285,6 +322,9 @@ pytest tests/
 - T. Denœux. *Conjunctive and disjunctive combination of belief functions induced by non-distinct bodies of evidence*, Artificial Intelligence, 172:234–264, 2008.
 - D. Mercier, B. Quost, T. Denœux. *Refined modeling of sensor reliability in the belief function framework using contextual discounting*, Information Fusion, Vol. 9, Issue 2, pp 246-258, April 2008.
 - F. Pichon, D. Mercier, É. Lefèvre, F. Delmotte. *Proposition and learning of some belief function contextual correction mechanisms*, International Journal of Approximate Reasoning, Vol. 72, pp 4-42, May 2016.
+- T. M. Strat. *Decision analysis using belief functions*, International Journal of Approximate Reasoning, Vol. 4, Issues 5-6, pp 391-417, 1990.
+- M. C. M. Troffaes. *Decision making under uncertainty using imprecise probabilities*, International Journal of Approximate Reasoning, Vol. 45, Issue 1, pp 17-29, 2007.
+- L. Ma, T. Denœux. *Partial classification in the belief function framework*, Knowledge-Based Systems, Vol. 214, 106742, 2021.
 
 ## License
 

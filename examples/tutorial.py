@@ -24,6 +24,7 @@ Sections
 13. display_all           — all representations in one table
 14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
 15. BetP and PlP          — pignistic and plausibility probability transformations
+16. Decision criteria     — maximin, maximax, pignistic, hurwicz, dominance
 
 References
 ----------
@@ -37,6 +38,12 @@ References
 - F. Pichon, D. Mercier, É. Lefèvre, F. Delmotte. Proposition and learning
   of some belief function contextual correction mechanisms.
   IJAR, 72:4-42, 2016.
+- T. M. Strat. Decision analysis using belief functions.
+  IJAR, 4(5-6):391-417, 1990.
+- M. C. M. Troffaes. Decision making under uncertainty using imprecise
+  probabilities. IJAR, 45(1):17-29, 2007.
+- L. Ma, T. Denœux. Partial classification in the belief function framework.
+  Knowledge-Based Systems, 214, 106742, 2021.
 """
 
 import numpy as np
@@ -532,3 +539,51 @@ print(f"  Categorical m({{a}})=1 → BetP = {m_cat.to_betp().round(4)}")
 print(f"\n{DIM}# Note: result is a numpy array of length n={len(frame)}, not a DSVector{R}")
 print(f"  type(m.to_betp()) = {type(m_demo.to_betp())}")
 print(f"  len(m.to_betp())  = {len(m_demo.to_betp())}")
+
+
+# ---------------------------------------------------------------------------
+# 17. Decision criteria
+# ---------------------------------------------------------------------------
+# Two families:
+#  - Complete preferences  → return (index, atom)
+#  - Partial preferences   → return frozenset of non-dominated atoms
+
+section("17. Decision criteria")
+
+from evtools.decision import (
+    maximin, maximax, pignistic_decision, hurwicz,
+    strong_dominance, weak_dominance,
+)
+
+m_dec = DSVector.from_focal(frame, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+print(f"{DIM}# BBA{R}")
+print(m_dec)
+
+print(f"\n{DIM}# Complete preference relations (identity utility){R}")
+print(f"  maximin            = {maximin(m_dec)}")
+print(f"  maximax            = {maximax(m_dec)}")
+print(f"  pignistic_decision = {pignistic_decision(m_dec)}")
+print(f"  hurwicz(α=0.5)     = {hurwicz(m_dec)}")
+print(f"  hurwicz(α=1.0)     = {hurwicz(m_dec, alpha=1.0)}  {DIM}← ≡ maximin{R}")
+print(f"  hurwicz(α=0.0)     = {hurwicz(m_dec, alpha=0.0)}  {DIM}← ≡ maximax{R}")
+
+print(f"\n{DIM}# Custom utility matrix U[i, j] = u(a_i, ω_j){R}")
+U = np.array([[1.0, 0.0, 0.0],
+              [0.0, 2.0, 0.0],
+              [0.0, 0.0, 3.0]])
+print(f"  pignistic_decision(m, U) = {pignistic_decision(m_dec, U)}")
+print(f"  maximin(m, U)            = {maximin(m_dec, U)}")
+print(f"  maximax(m, U)            = {maximax(m_dec, U)}")
+
+print(f"\n{DIM}# Partial preference relations — non-dominated atoms{R}")
+print(f"  strong_dominance(m) = {set(strong_dominance(m_dec))}")
+print(f"  weak_dominance(m)   = {set(weak_dominance(m_dec))}")
+
+print(f"\n{DIM}# Edge cases{R}")
+m_cat_dec = DSVector.from_focal(frame, {"a": 1.0})
+m_vac_dec = DSVector.from_focal(frame, {})
+print(f"  Categorical {{a}} → pignistic = {pignistic_decision(m_cat_dec)}, "
+      f"strong_dom = {set(strong_dominance(m_cat_dec))}")
+print(f"  Vacuous     → pignistic = {pignistic_decision(m_vac_dec)} "
+      f"{DIM}(picks index 0 — uniform tie-break){R}, "
+      f"strong_dom = {set(strong_dominance(m_vac_dec))}")
