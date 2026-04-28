@@ -45,5 +45,5 @@ from . import corrections
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 __all__ = ["conversions", "combinations", "corrections", "display", "DSVector", "Kind"]
