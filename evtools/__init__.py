@@ -22,6 +22,10 @@ evtools.corrections
     Correction mechanisms: discounting, reinforcement, negating and
     their contextual and inverse variants.
 
+evtools.decision
+    Decision criteria: maximin, maximax, pignistic_decision, hurwicz,
+    strong_dominance, weak_dominance.
+
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
     DSVector.__repr__ and _repr_html_ delegate here.
@@ -42,8 +46,9 @@ Usage
 from . import conversions
 from . import combinations
 from . import corrections
+from . import decision
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.12.0"
-__all__ = ["conversions", "combinations", "corrections", "display", "DSVector", "Kind"]
+__version__ = "0.13.0"
+__all__ = ["conversions", "combinations", "corrections", "decision", "display", "DSVector", "Kind"]

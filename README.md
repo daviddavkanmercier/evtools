@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.12.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.13.0.
 
 ## Modules
 
@@ -11,6 +11,7 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.12.0.
 | `evtools.conversions` | Low-level conversions via the Fast Möbius Transform |
 | `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold, and decombinations |
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
+| `evtools.decision` | Decision criteria: maximin, maximax, pignistic, hurwicz, dominance |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
