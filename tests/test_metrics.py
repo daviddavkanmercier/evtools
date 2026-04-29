@@ -125,3 +125,109 @@ class TestMeanAggregators:
     def test_single_correct_precise(self):
         assert mean_u65([frozenset({"a"})], ["a"]) == pytest.approx(1.0)
         assert mean_u80([frozenset({"a"})], ["a"]) == pytest.approx(1.0)
+
+
+# ---------------------------------------------------------------------------
+# pl_loss / mean_pl_loss  (E_pl and Ẽ_pl from Mutmainah 2021)
+# ---------------------------------------------------------------------------
+
+import numpy as np
+from evtools.dsvector import DSVector
+from evtools.metrics import pl_loss, mean_pl_loss
+
+
+FRAME = ["a", "h", "r"]
+
+
+class TestPlLoss:
+
+    def test_perfect_hard_prediction_gives_zero(self):
+        # Prediction is categorical on {a}, true label is "a".
+        # pl({a})=1, pl({h})=pl({r})=0; δ = (1, 0, 0). diff = 0 → loss = 0.
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        assert pl_loss([m], ["a"]) == pytest.approx(0.0)
+
+    def test_perfect_wrong_hard_prediction(self):
+        # Prediction is categorical on {a}, true label is "h".
+        # pl({a})=1, pl({h})=0, pl({r})=0; δ = (0, 1, 0).
+        # diff = (1, -1, 0) → squared = 1+1+0 = 2.
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        assert pl_loss([m], ["h"]) == pytest.approx(2.0)
+
+    def test_vacuous_against_hard_label(self):
+        # Vacuous: pl = (1, 1, 1) on singletons. δ = (1, 0, 0) for label "a".
+        # diff = (0, 1, 1) → squared = 0+1+1 = 2.
+        m = DSVector.from_focal(FRAME, {})  # vacuous → m(Ω)=1
+        assert pl_loss([m], ["a"]) == pytest.approx(2.0)
+
+    def test_known_result_two_atom_frame(self):
+        # Frame = {a, b}, m({a})=0.6, m({a,b})=0.4
+        # Then pl({a}) = 1, pl({b}) = 0.4. With label "a" → δ=(1,0).
+        # diff = (0, 0.4) → squared = 0.16.
+        m = DSVector.from_focal(["a", "b"], {"a": 0.6})  # rest mass to Ω
+        assert pl_loss([m], ["a"]) == pytest.approx(0.16)
+
+    def test_perfect_soft_label_self(self):
+        # If soft label = prediction, contour functions match → loss = 0.
+        m = DSVector.from_focal(FRAME, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+        assert pl_loss([m], [m]) == pytest.approx(0.0)
+
+    def test_soft_label_categorical_equals_hard(self):
+        # A soft label categorical on {a} should give the same loss as the
+        # hard label "a" (its contour function is the indicator on {a}).
+        m_pred = DSVector.from_focal(FRAME, {"a": 0.6, "h": 0.2, "r": 0.2})
+        soft   = DSVector.from_focal(FRAME, {"a": 1.0})
+        loss_hard = pl_loss([m_pred], ["a"])
+        loss_soft = pl_loss([m_pred], [soft])
+        assert loss_hard == pytest.approx(loss_soft)
+
+    def test_mixed_hard_and_soft_labels(self):
+        # Mixing within the same call is supported.
+        m1 = DSVector.from_focal(FRAME, {"a": 1.0})
+        m2 = DSVector.from_focal(FRAME, {"a": 0.5, "h": 0.5})
+        soft_h = DSVector.from_focal(FRAME, {"h": 1.0})
+        # m1 vs "a" → 0,    m2 vs soft_h:
+        # pl(m2) on singletons = (0.5, 0.5, 0)  (m({a}) + m({a,h}) etc.)
+        # δ̃ for soft_h = (0, 1, 0)
+        # diff = (0.5, -0.5, 0) → 0.5
+        loss_total = pl_loss([m1, m2], ["a", soft_h])
+        assert loss_total == pytest.approx(0.5)
+
+    def test_dataset_summed_not_averaged(self):
+        # pl_loss sums over instances; mean_pl_loss divides by n.
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        loss3   = pl_loss([m, m, m], ["h", "h", "h"])
+        loss1   = pl_loss([m],       ["h"])
+        assert loss3 == pytest.approx(3 * loss1)
+
+    def test_lengths_mismatch_raises(self):
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        with pytest.raises(ValueError, match="length"):
+            pl_loss([m, m], ["a"])
+
+    def test_invalid_label_type_raises(self):
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        with pytest.raises(TypeError, match="str|DSVector"):
+            pl_loss([m], [123])
+
+    def test_soft_label_frame_mismatch_raises(self):
+        m_pred = DSVector.from_focal(FRAME, {"a": 1.0})
+        m_lbl  = DSVector.from_focal(["x", "y", "z"], {"x": 1.0})
+        with pytest.raises(ValueError, match="frame"):
+            pl_loss([m_pred], [m_lbl])
+
+
+class TestMeanPlLoss:
+
+    def test_mean_equals_loss_over_n(self):
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        preds  = [m, m, m]
+        labels = ["h", "h", "h"]
+        assert mean_pl_loss(preds, labels) == pytest.approx(pl_loss(preds, labels) / 3)
+
+    def test_empty_returns_zero(self):
+        assert mean_pl_loss([], []) == 0.0
+
+    def test_perfect_predictions_zero_mean(self):
+        m = DSVector.from_focal(FRAME, {"a": 1.0})
+        assert mean_pl_loss([m, m], ["a", "a"]) == 0.0

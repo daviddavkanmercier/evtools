@@ -248,3 +248,38 @@ def test_repr_single_focal_singular():
     m = DSVector.from_focal(FRAME_AB, {"a": 1.0})
     assert "1 focal element" in repr(m)
     assert "1 focal elements" not in repr(m)
+
+
+# ---------------------------------------------------------------------------
+# contour function
+# ---------------------------------------------------------------------------
+
+def test_contour_categorical():
+    m = DSVector.from_focal(["a", "h", "r"], {"a": 1.0})
+    np.testing.assert_allclose(m.contour(), [1.0, 0.0, 0.0])
+
+
+def test_contour_vacuous():
+    m = DSVector.from_focal(["a", "h", "r"], {})  # m(Ω) = 1
+    np.testing.assert_allclose(m.contour(), [1.0, 1.0, 1.0])
+
+
+def test_contour_known_result():
+    # m({a})=0.5, m({r})=0.5: pl({a})=0.5, pl({h})=0, pl({r})=0.5
+    m = DSVector.from_focal(["a", "h", "r"], {"a": 0.5, "r": 0.5})
+    np.testing.assert_allclose(m.contour(), [0.5, 0.0, 0.5])
+
+
+def test_contour_independent_of_source_kind():
+    # contour() should return the same vector regardless of the source kind.
+    m  = DSVector.from_focal(["a", "h", "r"], {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+    expected = m.contour()
+    for kind in [Kind.BEL, Kind.PL, Kind.B, Kind.Q]:
+        np.testing.assert_allclose(m.to(kind).contour(), expected, atol=1e-12)
+
+
+def test_contour_returns_length_n():
+    m = DSVector.from_focal(["a", "h", "r"], {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
+    c = m.contour()
+    assert isinstance(c, np.ndarray)
+    assert c.shape == (3,)

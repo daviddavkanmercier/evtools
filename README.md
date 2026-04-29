@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.18.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.19.0.
 
 ## Modules
 
@@ -273,6 +273,40 @@ predictions = [strong_dominance(m_i) for m_i in classifier_outputs]
 print(mean_u65(predictions, true_labels))
 print(mean_u80(predictions, true_labels))
 ```
+
+### BBA-valued predictions: pl-based discrepancy
+
+The `pl_loss` metric is the discrepancy criterion minimized when learning
+contextual correction parameters β (Mercier et al. 2008, Mutmainah 2021).
+It is also used as a performance measure (lower is better):
+
+$$L = \sum_{i=1}^{n} \sum_{k=1}^{K} \bigl(pl_i(\omega_k) - \delta_{i,k}\bigr)^2$$
+
+where `pl_i` is the contour function of prediction *i* (= `m_i.contour()`)
+and `δ_{i,k}` is either an indicator (hard label) or the contour function
+of a soft label (BBA). The same function handles both cases, and they can
+be mixed within the same call.
+
+```python
+from evtools.metrics import pl_loss, mean_pl_loss
+
+# Hard labels (E_pl, Eq. 2.24 of Mutmainah 2021)
+pl_loss(predictions, ["a", "h", "r", "a", ...])
+
+# Soft labels (Ẽ_pl, Eq. 5.6 of Mutmainah 2021)
+pl_loss(predictions, [m_label_1, m_label_2, ...])
+
+# Mixed: each instance can be hard or soft
+pl_loss(predictions, ["a", m_label_2, "r", ...])
+
+# Mean over the dataset
+mean_pl_loss(predictions, labels)
+```
+
+The `DSVector.contour()` method returns the length-K vector of singleton
+plausibilities — the basic building block for both `pl_loss` and the
+strong/weak dominance decision criteria. Works regardless of the source
+kind (m, bel, pl, b, q, v, w).
 
 ### Hard-classification metrics: use scikit-learn
 

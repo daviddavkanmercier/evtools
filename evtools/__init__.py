@@ -28,7 +28,8 @@ evtools.decision
 
 evtools.metrics
     Performance metrics for evaluating decisions and predictions:
-    discounted_accuracy, u65, u80, utility_score, plus mean_* aggregators.
+    discounted_accuracy, u65, u80, utility_score, pl_loss (E_pl/Ẽ_pl),
+    plus mean_* aggregators.
 
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
@@ -55,5 +56,5 @@ from . import metrics
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.18.0"
+__version__ = "0.19.0"
 __all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "display", "DSVector", "Kind"]

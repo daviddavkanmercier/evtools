@@ -587,6 +587,29 @@ class DSVector:
         from .conversions import plp
         return plp(self.dense)
 
+    def contour(self) -> np.ndarray:
+        """
+        Contour function over the atoms of the frame.
+
+            pl(ω_k) = Pl({ω_k})  for k = 1, ..., n
+
+        Returns the n-vector of singleton plausibilities (one value per atom),
+        in the same order as :attr:`frame`. Works regardless of the source
+        ``kind`` — internally converts to PL if needed.
+
+        Returns
+        -------
+        np.ndarray
+            Length-n contour function.
+
+        References
+        ----------
+        Shafer, G. (1976). A Mathematical Theory of Evidence. Section 2.
+        """
+        pl_dense = self.to(Kind.PL).dense
+        n = len(self._frame)
+        return np.array([pl_dense[1 << k] for k in range(n)])
+
     def to_m(self)   -> "DSVector":
         """Convert to mass function (Kind.M)."""
         return self.to(Kind.M)

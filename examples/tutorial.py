@@ -631,6 +631,25 @@ print(f"  mean_discounted_accuracy = {mean_discounted_accuracy(preds, labels):.4
 print(f"  mean_u65                 = {mean_u65(preds, labels):.4f}")
 print(f"  mean_u80                 = {mean_u80(preds, labels):.4f}")
 
+print(f"\n{DIM}# BBA-valued predictions: pl_loss (E_pl / Ẽ_pl){R}")
+print(f"{DIM}# Same formula for hard and soft labels — they can be mixed.{R}")
+from evtools.metrics import pl_loss, mean_pl_loss
+
+m_pred1 = DSVector.from_focal(frame, {"a": 0.6, "h": 0.2, "r": 0.2})
+m_pred2 = DSVector.from_focal(frame, {"a": 0.5, "h": 0.5})
+m_soft  = DSVector.from_focal(frame, {"a": 0.5, "h": 0.5})  # uncertain between a and h
+
+# Hard labels (E_pl)
+loss_hard = pl_loss([m_pred1, m_pred2], ["a", "h"])
+# Soft labels (Ẽ_pl)
+loss_soft = pl_loss([m_pred1, m_pred2], [m_soft, m_soft])
+# Mixed
+loss_mix  = pl_loss([m_pred1, m_pred2], ["a", m_soft])
+print(f"  pl_loss (hard {{a, h}})           = {loss_hard:.4f}")
+print(f"  pl_loss (soft, both same m_soft)  = {loss_soft:.4f}")
+print(f"  pl_loss (mixed: 'a' + m_soft)     = {loss_mix:.4f}")
+print(f"  mean_pl_loss (hard, n=2)          = {mean_pl_loss([m_pred1, m_pred2], ['a', 'h']):.4f}")
+
 print(f"\n{DIM}# Hard-prediction metrics: extract a probability vector → sklearn{R}")
 try:
     from sklearn.metrics import accuracy_score, roc_auc_score

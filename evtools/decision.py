@@ -461,14 +461,11 @@ def strong_dominance(m: DSVector) -> frozenset:
     """
     _check_bba(m, "strong_dominance")
 
-    from .conversions import mtobel, mtopl
-    bel = mtobel(m.dense)
-    pl  = mtopl(m.dense)
-    n   = len(m.frame)
-
-    # Bel({ω_k}) = bel[2^k], Pl({ω_k}) = pl[2^k]
-    bel_s = np.array([bel[1 << k] for k in range(n)])
-    pl_s  = np.array([pl[1 << k]  for k in range(n)])
+    n = len(m.frame)
+    # Bel({ω_k}) = m({ω_k})  and  Pl({ω_k}) = contour(ω_k)
+    m_dense = m.dense
+    bel_s = np.array([m_dense[1 << k] for k in range(n)])
+    pl_s  = m.contour()
 
     # ω is non-dominated if no ω' satisfies Bel({ω'}) ≥ Pl({ω})
     non_dominated = []
@@ -520,13 +517,10 @@ def weak_dominance(m: DSVector) -> frozenset:
     """
     _check_bba(m, "weak_dominance")
 
-    from .conversions import mtobel, mtopl
-    bel = mtobel(m.dense)
-    pl  = mtopl(m.dense)
-    n   = len(m.frame)
-
-    bel_s = np.array([bel[1 << k] for k in range(n)])
-    pl_s  = np.array([pl[1 << k]  for k in range(n)])
+    n = len(m.frame)
+    m_dense = m.dense
+    bel_s = np.array([m_dense[1 << k] for k in range(n)])
+    pl_s  = m.contour()
 
     # ω is non-dominated if no ω' satisfies Bel({ω'}) ≥ Bel({ω})
     # and Pl({ω'}) ≥ Pl({ω}) simultaneously
