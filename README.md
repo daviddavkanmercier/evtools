@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.17.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.18.0.
 
 ## Modules
 
@@ -12,6 +12,7 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.17.0.
 | `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold, and decombinations |
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
 | `evtools.decision` | Decision criteria: maximin, maximax, pignistic, plp, hurwicz, dominance |
+| `evtools.metrics` | Performance metrics: discounted_accuracy, u65, u80 + mean aggregators |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
@@ -237,18 +238,47 @@ maximin(m, U)
 strong_dominance(m)    # ω ≻ ω'  ⟺  Bel({ω}) ≥ Pl({ω'})
 weak_dominance(m)      # ω ≻ ω'  ⟺  Bel({ω}) ≥ Bel({ω'}) and Pl({ω}) ≥ Pl({ω'})
 
-# Utility-discounted accuracies (Zaffalon et al. 2012) — score a partial
-# decision d ⊆ Ω against a true class ω with x = I(ω∈d)/|d|
-from evtools.decision import discounted_accuracy, u65, u80, utility_score
-discounted_accuracy(d, omega)              # x
-u65(d, omega)                              # 1.6·x − 0.6·x²  (≡ 0.65 if |d|=2 correct)
-u80(d, omega)                              # 2.2·x − 1.2·x²  (≡ 0.80 if |d|=2 correct)
-utility_score(d, omega, a=1.6, b=0.6)      # generic a·x − b·x²
 ```
 
 Default utility (when `U` is omitted) is the identity matrix (0-1 utility, the
 standard classification setting). With identity utility, `pignistic_decision`
 returns the atom with maximum BetP.
+
+---
+
+## `evtools.metrics`
+
+Performance metrics for evaluating decisions and predictions.
+
+### Per-instance metrics on partial decisions
+
+Score a partial decision `d ⊆ Ω` against a true class `ω` using the discounted
+accuracy `x = I(ω ∈ d) / |d|` (Zaffalon et al. 2012).
+
+```python
+from evtools.metrics import discounted_accuracy, u65, u80, utility_score
+
+discounted_accuracy(d, omega)             # x
+u65(d, omega)                             # 1.6·x − 0.6·x²  (≡ 0.65 if |d|=2 correct)
+u80(d, omega)                             # 2.2·x − 1.2·x²  (≡ 0.80 if |d|=2 correct)
+utility_score(d, omega, a=1.6, b=0.6)     # generic a·x − b·x²
+```
+
+### Mean aggregators over a dataset
+
+```python
+from evtools.metrics import mean_u65, mean_u80, mean_discounted_accuracy
+
+predictions = [strong_dominance(m_i) for m_i in classifier_outputs]
+print(mean_u65(predictions, true_labels))
+print(mean_u80(predictions, true_labels))
+```
+
+### Hard-classification metrics: use scikit-learn
+
+For ROC, AUC, accuracy, precision/recall, etc. on hard predictions, extract a
+probability vector (e.g. via `m.to_betp()` or `m.to_plp()`) and feed it to
+`sklearn.metrics`. The tutorials show end-to-end examples.
 
 ---
 

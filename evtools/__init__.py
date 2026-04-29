@@ -25,7 +25,10 @@ evtools.corrections
 evtools.decision
     Decision criteria: maximin, maximax, pignistic_decision, plp_decision,
     probability_decision, hurwicz, strong_dominance, weak_dominance.
-    Utility-discounted accuracies: discounted_accuracy, u65, u80, utility_score.
+
+evtools.metrics
+    Performance metrics for evaluating decisions and predictions:
+    discounted_accuracy, u65, u80, utility_score, plus mean_* aggregators.
 
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
@@ -48,8 +51,9 @@ from . import conversions
 from . import combinations
 from . import corrections
 from . import decision
+from . import metrics
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.17.0"
-__all__ = ["conversions", "combinations", "corrections", "decision", "display", "DSVector", "Kind"]
+__version__ = "0.18.0"
+__all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "display", "DSVector", "Kind"]

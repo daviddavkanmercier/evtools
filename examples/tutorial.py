@@ -24,7 +24,8 @@ Sections
 13. display_all           — all representations in one table
 14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
 15. BetP and PlP          — pignistic and plausibility probability transformations
-16. Decision criteria     — maximin, maximax, pignistic, hurwicz, dominance
+16. Decision criteria     — maximin, maximax, pignistic, plp, hurwicz, dominance
+17. Performance metrics   — u65, u80, sklearn for ROC/AUC on hard predictions
 
 References
 ----------
@@ -598,24 +599,61 @@ print(f"  Vacuous     → pignistic = {pignistic_decision(m_vac_dec)} "
       f"{DIM}(picks index 0 — uniform tie-break){R}, "
       f"strong_dom = {set(strong_dominance(m_vac_dec))}")
 
-print(f"\n{DIM}# Utility-discounted accuracies (Zaffalon et al. 2012){R}")
-print(f"{DIM}# Score a partial decision d against the true class ω.{R}")
-print(f"{DIM}# x = I(ω∈d)/|d|;  u65(x)=1.6x−0.6x²;  u80(x)=2.2x−1.2x².{R}")
 
-from evtools.decision import discounted_accuracy, u65, u80, utility_score
 
+# ---------------------------------------------------------------------------
+# 18. Performance metrics (evtools.metrics) and scikit-learn interop
+# ---------------------------------------------------------------------------
+# evtools.metrics provides utility-discounted accuracies for partial decisions
+# (Zaffalon et al. 2012). For ROC/AUC/etc. on hard predictions, extract a
+# probability vector and feed it to sklearn.metrics.
+
+section("18. Performance metrics  (evtools.metrics + sklearn)")
+
+from evtools.metrics import (
+    discounted_accuracy, u65, u80, utility_score,
+    mean_u65, mean_u80, mean_discounted_accuracy,
+)
+
+print(f"{DIM}# Per-instance metrics on partial decisions{R}")
 true_label = "a"
-d_precise = strong_dominance(m_cat_dec)            # {a}
-d_partial = strong_dominance(m_dec)                # {a, h}  (here)
-d_wrong   = frozenset({"r"})                       # wrong precise
+for d in [frozenset({"a"}), frozenset({"a", "h"}), frozenset({"a", "h", "r"}), frozenset({"r"})]:
+    label = str(set(d)) if d else "∅"
+    x = discounted_accuracy(d, true_label)
+    print(f"  d = {label:<22} x={x:.4f}  u65={u65(d, true_label):.4f}  u80={u80(d, true_label):.4f}")
 
-print(f"  d = {set(d_precise)}, ω = {true_label!r}:")
-print(f"    x = {discounted_accuracy(d_precise, true_label):.4f}, "
-      f"u65 = {u65(d_precise, true_label):.4f}, u80 = {u80(d_precise, true_label):.4f}")
-print(f"  d = {set(d_partial)}, ω = {true_label!r}:")
-print(f"    x = {discounted_accuracy(d_partial, true_label):.4f}, "
-      f"u65 = {u65(d_partial, true_label):.4f}, u80 = {u80(d_partial, true_label):.4f}")
-print(f"  d = {set(d_wrong)}, ω = {true_label!r}:")
-print(f"    x = {discounted_accuracy(d_wrong, true_label):.4f}, "
-      f"u65 = {u65(d_wrong, true_label):.4f}, u80 = {u80(d_wrong, true_label):.4f}")
-print(f"  {DIM}# Generic: utility_score(d, ω, a=1.6, b=0.6) → {utility_score(d_partial, true_label, a=1.6, b=0.6):.4f} ≡ u65{R}")
+print(f"\n{DIM}# Mean aggregators on a paired (predictions, labels) iterable{R}")
+preds  = [frozenset({"a"}),  frozenset({"a", "h"}), frozenset({"r"})]
+labels = ["a",               "a",                    "a"]
+print(f"  predictions = {[set(p) for p in preds]}")
+print(f"  labels      = {labels}")
+print(f"  mean_discounted_accuracy = {mean_discounted_accuracy(preds, labels):.4f}")
+print(f"  mean_u65                 = {mean_u65(preds, labels):.4f}")
+print(f"  mean_u80                 = {mean_u80(preds, labels):.4f}")
+
+print(f"\n{DIM}# Hard-prediction metrics: extract a probability vector → sklearn{R}")
+try:
+    from sklearn.metrics import accuracy_score, roc_auc_score
+    import numpy as np
+
+    # Two BBAs as classifier outputs (both for class 'a')
+    m1 = DSVector.from_focal(frame, {"a": 0.7, "a,h": 0.3})            # confident a
+    m2 = DSVector.from_focal(frame, {"r": 0.5, "a,h,r": 0.5})           # confused
+    bba_outputs = [m1, m2]
+    y_true      = ["a", "a"]
+
+    # Hard prediction = argmax BetP
+    y_pred = [m.frame[int(np.argmax(m.to_betp()))] for m in bba_outputs]
+    print(f"  y_true = {y_true}, y_pred = {y_pred}")
+    print(f"  sklearn.accuracy_score = {accuracy_score(y_true, y_pred):.4f}")
+
+    # Binary AUC: take BetP({a}) as the probability score for class 'a'
+    score_a = [m.to_betp()[0] for m in bba_outputs]  # idx 0 = 'a' in this frame
+    y_bin   = [1 if y == "a" else 0 for y in y_true]
+    # roc_auc_score requires both classes — degenerate here but illustrative
+    if len(set(y_bin)) == 2:
+        print(f"  sklearn.roc_auc_score  = {roc_auc_score(y_bin, score_a):.4f}")
+    else:
+        print(f"  {DIM}roc_auc_score skipped: only one class in y_true (illustrative dataset){R}")
+except ImportError:
+    print(f"  {DIM}(install scikit-learn to run this part: `pip install scikit-learn`){R}")
