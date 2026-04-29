@@ -8,10 +8,13 @@ Complete preference relations (precise assignment)
 These criteria define a total order among acts and return the optimal act
 as a tuple (index, atom_name).
 
-    maximin(m, U)            — pessimistic: maximize lower expected utility
-    maximax(m, U)            — optimistic:  maximize upper expected utility
-    pignistic_decision(m, U) — pignistic:   maximize BetP-weighted utility
-    hurwicz(m, U, alpha)     — convex combination of maximin and maximax
+    maximin(m, U)              — pessimistic: maximize lower expected utility
+    maximax(m, U)              — optimistic:  maximize upper expected utility
+    pignistic_decision(m, U)   — MEU with BetP (Smets pignistic)
+    plp_decision(m, U)         — MEU with PlP  (Cobb & Shenoy plausibility-prob.)
+    probability_decision(m, U, transform=...)
+                               — generic MEU with an arbitrary m → probability transform
+    hurwicz(m, U, alpha)       — convex combination of maximin and maximax
 
 Partial preference relations (partial decision)
 -----------------------------------------------
@@ -48,6 +51,8 @@ References
 """
 
 from __future__ import annotations
+
+from typing import Callable
 
 import numpy as np
 
@@ -215,19 +220,80 @@ def maximax(
     return idx, m.frame[idx]
 
 
+def probability_decision(
+    m: DSVector,
+    U: np.ndarray | None = None,
+    *,
+    transform: Callable[[np.ndarray], np.ndarray] | None = None,
+) -> tuple[int, str]:
+    """
+    Generic MEU decision under a probability transformation of *m*.
+
+    Selects the act that maximizes the expected utility weighted by a
+    probability vector p obtained from m:
+
+        E_p(a_i) = Σ_j p_j · U[i, j],   p = transform(m.dense)
+
+    Parameters
+    ----------
+    m : DSVector
+        The BBA representing uncertainty (kind=Kind.M).
+    U : np.ndarray, optional
+        Utility matrix of shape (n, n). Defaults to identity.
+    transform : callable, optional
+        A function np.ndarray → np.ndarray mapping the dense BBA (length 2^n)
+        to a probability vector of length n. Defaults to PlP
+        (Cobb & Shenoy 2006). Common choices: ``evtools.conversions.plp``,
+        ``evtools.conversions.betp``.
+
+    Returns
+    -------
+    tuple[int, str]
+        (index, atom) of the optimal act.
+
+    Raises
+    ------
+    ValueError
+        If the transform raises (e.g. BetP on a fully contradictory BBA),
+        or if the transform's output length does not match the frame size.
+
+    References
+    ----------
+    Smets, P., Kennes, R. (1994). AI, 66(2), 191-234.
+    Cobb, B.R., Shenoy, P.P. (2006). IJAR, 41(3), 314-330.
+    Ma, L., Denœux, T. (2021). KBS, 214, 106742. Eq. (15).
+    """
+    _check_bba(m, "probability_decision")
+    n = len(m.frame)
+    if U is None:
+        U = _default_utility(n)
+    _check_utility(U, n, "probability_decision")
+
+    if transform is None:
+        from .conversions import plp
+        transform = plp
+
+    p = transform(m.dense)
+    if p.shape != (n,):
+        raise ValueError(
+            f"probability_decision: transform must return a vector of length "
+            f"{n} (got shape {p.shape})."
+        )
+    scores = U @ p
+    idx = int(np.argmax(scores))
+    return idx, m.frame[idx]
+
+
 def pignistic_decision(
     m: DSVector,
     U: np.ndarray | None = None,
 ) -> tuple[int, str]:
     """
-    Pignistic decision criterion (MEU with BetP).
+    Pignistic decision criterion — MEU with BetP.
 
-    Selects the act that maximizes the BetP-weighted expected utility:
-
-        E_{BetP}(a_i) = Σ_j BetP({ω_j}) · U[i, j]
-
-    With 0-1 utilities (identity U), this reduces to choosing the atom
-    with maximum pignistic probability.
+    Convenience wrapper around :func:`probability_decision` with
+    ``transform=betp``. With 0-1 utilities (identity U), reduces to
+    selecting the atom of maximum pignistic probability.
 
     Parameters
     ----------
@@ -251,20 +317,48 @@ def pignistic_decision(
     ----------
     Smets, P., Kennes, R. (1994). AI, 66(2), 191-234.
     Smets, P. (2005). IJAR, 38(2), 133-147.
-    Ma, L., Denœux, T. (2021). KBS, 214, 106742. Eq. (15).
-    Mutmainah, S. (thesis). Eqs. (1.18)-(1.19).
     """
-    _check_bba(m, "pignistic_decision")
-    n = len(m.frame)
-    if U is None:
-        U = _default_utility(n)
-    _check_utility(U, n, "pignistic_decision")
-
     from .conversions import betp
-    bp = betp(m.dense)  # raises ValueError if m(∅) = 1
-    scores = U @ bp
-    idx = int(np.argmax(scores))
-    return idx, m.frame[idx]
+    return probability_decision(m, U, transform=betp)
+
+
+def plp_decision(
+    m: DSVector,
+    U: np.ndarray | None = None,
+) -> tuple[int, str]:
+    """
+    Plausibility-probability decision criterion — MEU with PlP.
+
+    Convenience wrapper around :func:`probability_decision` with
+    ``transform=plp`` (Cobb & Shenoy 2006). With 0-1 utilities (identity U),
+    reduces to selecting the atom of maximum plausibility-probability.
+
+    Parameters
+    ----------
+    m : DSVector
+        The BBA representing uncertainty (kind=Kind.M).
+        Must have non-zero singleton plausibilities.
+    U : np.ndarray, optional
+        Utility matrix of shape (n, n). Defaults to identity.
+
+    Returns
+    -------
+    tuple[int, str]
+        (index, atom) of the optimal act.
+
+    Raises
+    ------
+    ValueError
+        If all singleton plausibilities are zero (PlP undefined).
+
+    References
+    ----------
+    Cobb, B.R., Shenoy, P.P. (2006). On the plausibility transformation
+    method for translating belief function models to probability models.
+    IJAR, 41(3), 314-330.
+    """
+    from .conversions import plp
+    return probability_decision(m, U, transform=plp)
 
 
 def hurwicz(

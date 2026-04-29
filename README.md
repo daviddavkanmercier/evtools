@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.15.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.16.0.
 
 ## Modules
 
@@ -11,7 +11,7 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.15.0.
 | `evtools.conversions` | Low-level conversions via the Fast Möbius Transform |
 | `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold, and decombinations |
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
-| `evtools.decision` | Decision criteria: maximin, maximax, pignistic, hurwicz, dominance |
+| `evtools.decision` | Decision criteria: maximin, maximax, pignistic, plp, hurwicz, dominance |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
@@ -209,15 +209,22 @@ Decision criteria for selecting an act from a BBA. Two families:
 
 ```python
 from evtools.decision import (
-    maximin, maximax, pignistic_decision, hurwicz,
-    strong_dominance, weak_dominance,
+    maximin, maximax, pignistic_decision, plp_decision, probability_decision,
+    hurwicz, strong_dominance, weak_dominance,
 )
 
 # Complete preference relations — return (index, atom)
 maximin(m)             # pessimistic: max lower expected utility
 maximax(m)             # optimistic:  max upper expected utility
 pignistic_decision(m)  # MEU with BetP (Smets pignistic)
+plp_decision(m)        # MEU with PlP  (Cobb & Shenoy plausibility-prob.)
 hurwicz(m, alpha=0.5)  # convex combination of maximin and maximax
+
+# Generic MEU — pass any m → probability transform
+from evtools.conversions import betp, plp
+probability_decision(m, transform=betp)        # ≡ pignistic_decision
+probability_decision(m, transform=plp)         # ≡ plp_decision
+probability_decision(m, transform=my_custom)   # bring your own
 
 # With a custom utility matrix U of shape (n, n)
 import numpy as np

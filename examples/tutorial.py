@@ -551,27 +551,35 @@ print(f"  len(m.to_betp())  = {len(m_demo.to_betp())}")
 section("17. Decision criteria")
 
 from evtools.decision import (
-    maximin, maximax, pignistic_decision, hurwicz,
-    strong_dominance, weak_dominance,
+    maximin, maximax, pignistic_decision, plp_decision, probability_decision,
+    hurwicz, strong_dominance, weak_dominance,
 )
+from evtools.conversions import betp, plp
 
 m_dec = DSVector.from_focal(frame, {"a": 0.3, "a,h": 0.4, "a,h,r": 0.3})
 print(f"{DIM}# BBA{R}")
 print(m_dec)
 
 print(f"\n{DIM}# Complete preference relations (identity utility){R}")
-print(f"  maximin            = {maximin(m_dec)}")
-print(f"  maximax            = {maximax(m_dec)}")
-print(f"  pignistic_decision = {pignistic_decision(m_dec)}")
-print(f"  hurwicz(α=0.5)     = {hurwicz(m_dec)}")
-print(f"  hurwicz(α=1.0)     = {hurwicz(m_dec, alpha=1.0)}  {DIM}← ≡ maximin{R}")
-print(f"  hurwicz(α=0.0)     = {hurwicz(m_dec, alpha=0.0)}  {DIM}← ≡ maximax{R}")
+print(f"  maximin              = {maximin(m_dec)}")
+print(f"  maximax              = {maximax(m_dec)}")
+print(f"  pignistic_decision   = {pignistic_decision(m_dec)}")
+print(f"  plp_decision         = {plp_decision(m_dec)}")
+print(f"  hurwicz(α=0.5)       = {hurwicz(m_dec)}")
+print(f"  hurwicz(α=1.0)       = {hurwicz(m_dec, alpha=1.0)}  {DIM}← ≡ maximin{R}")
+print(f"  hurwicz(α=0.0)       = {hurwicz(m_dec, alpha=0.0)}  {DIM}← ≡ maximax{R}")
+
+print(f"\n{DIM}# Generic MEU — pass the m → probability transform explicitly{R}")
+print(f"  probability_decision(m, transform=plp)   = {probability_decision(m_dec, transform=plp)}  "
+      f"{DIM}(default){R}")
+print(f"  probability_decision(m, transform=betp)  = {probability_decision(m_dec, transform=betp)}")
 
 print(f"\n{DIM}# Custom utility matrix U[i, j] = u(a_i, ω_j){R}")
 U = np.array([[1.0, 0.0, 0.0],
               [0.0, 2.0, 0.0],
               [0.0, 0.0, 3.0]])
 print(f"  pignistic_decision(m, U) = {pignistic_decision(m_dec, U)}")
+print(f"  plp_decision(m, U)       = {plp_decision(m_dec, U)}")
 print(f"  maximin(m, U)            = {maximin(m_dec, U)}")
 print(f"  maximax(m, U)            = {maximax(m_dec, U)}")
 

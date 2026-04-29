@@ -1,15 +1,16 @@
 """
-Tests for evtools.decision — maximin, maximax, pignistic, hurwicz,
-strong_dominance, weak_dominance.
+Tests for evtools.decision — maximin, maximax, pignistic, plp,
+probability, hurwicz, strong_dominance, weak_dominance.
 """
 
 import numpy as np
 import pytest
 from evtools.dsvector import DSVector, Kind
 from evtools.decision import (
-    maximin, maximax, pignistic_decision, hurwicz,
-    strong_dominance, weak_dominance,
+    maximin, maximax, pignistic_decision, plp_decision, probability_decision,
+    hurwicz, strong_dominance, weak_dominance,
 )
+from evtools.conversions import betp, plp
 
 FRAME = ["a", "h", "r"]
 
@@ -125,6 +126,81 @@ class TestPignisticDecision:
         U = np.ones((n, n)) - np.eye(n)
         idx, atom = pignistic_decision(M, U)
         assert atom == "r"
+
+
+# ---------------------------------------------------------------------------
+# plp_decision and probability_decision
+# ---------------------------------------------------------------------------
+
+class TestPlpDecision:
+
+    def test_categorical_picks_truth(self):
+        idx, atom = plp_decision(M_CAT)
+        assert atom == "a"
+
+    def test_vacuous_picks_first(self):
+        # PlP uniform → all expected utilities equal → argmax = index 0
+        idx, atom = plp_decision(M_VAC)
+        assert idx == 0
+
+    def test_known_result(self):
+        # PlP({a})=0.5, PlP({h})=0.35, PlP({r})=0.15 → argmax = a
+        idx, atom = plp_decision(M)
+        assert atom == "a"
+
+    def test_wrong_kind_raises(self):
+        with pytest.raises(ValueError, match="kind"):
+            plp_decision(M.to_bel())
+
+    def test_custom_utility(self):
+        # Inverted preferences: with U = J - I, picks atom of smallest PlP.
+        n = len(FRAME)
+        U = np.ones((n, n)) - np.eye(n)
+        idx, atom = plp_decision(M, U)
+        assert atom == "r"
+
+
+class TestProbabilityDecision:
+
+    def test_default_transform_is_plp(self):
+        # When transform is omitted, behave like plp_decision.
+        assert probability_decision(M) == plp_decision(M)
+
+    def test_explicit_betp_matches_pignistic(self):
+        assert probability_decision(M, transform=betp) == pignistic_decision(M)
+
+    def test_explicit_plp_matches_plp_decision(self):
+        assert probability_decision(M, transform=plp) == plp_decision(M)
+
+    def test_custom_transform_uniform(self):
+        # A custom transform that always returns the uniform distribution
+        # → all expected utilities equal → argmax returns index 0.
+        n = len(FRAME)
+        uniform = lambda dense: np.full(n, 1.0 / n)
+        idx, atom = probability_decision(M, transform=uniform)
+        assert idx == 0
+
+    def test_custom_transform_one_hot_picks_atom(self):
+        # Transform returning a one-hot vector at index 2 → forces choice "r"
+        # under identity utility.
+        n = len(FRAME)
+        one_hot_r = lambda dense: np.eye(n)[2]
+        idx, atom = probability_decision(M, transform=one_hot_r)
+        assert atom == "r"
+
+    def test_transform_wrong_length_raises(self):
+        bad = lambda dense: np.zeros(len(FRAME) + 1)
+        with pytest.raises(ValueError, match="length|shape"):
+            probability_decision(M, transform=bad)
+
+    def test_betp_conflict_raises(self):
+        m_conflict = DSVector.from_sparse(FRAME, {frozenset(): 1.0})
+        with pytest.raises(ValueError):
+            probability_decision(m_conflict, transform=betp)
+
+    def test_wrong_kind_raises(self):
+        with pytest.raises(ValueError, match="kind"):
+            probability_decision(M.to_bel())
 
 
 # ---------------------------------------------------------------------------

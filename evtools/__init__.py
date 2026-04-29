@@ -23,8 +23,8 @@ evtools.corrections
     their contextual and inverse variants.
 
 evtools.decision
-    Decision criteria: maximin, maximax, pignistic_decision, hurwicz,
-    strong_dominance, weak_dominance.
+    Decision criteria: maximin, maximax, pignistic_decision, plp_decision,
+    probability_decision, hurwicz, strong_dominance, weak_dominance.
 
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
@@ -50,5 +50,5 @@ from . import decision
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.15.0"
+__version__ = "0.16.0"
 __all__ = ["conversions", "combinations", "corrections", "decision", "display", "DSVector", "Kind"]
