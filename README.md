@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.16.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.17.0.
 
 ## Modules
 
@@ -236,6 +236,14 @@ maximin(m, U)
 # Partial preference relations — return frozenset of non-dominated atoms
 strong_dominance(m)    # ω ≻ ω'  ⟺  Bel({ω}) ≥ Pl({ω'})
 weak_dominance(m)      # ω ≻ ω'  ⟺  Bel({ω}) ≥ Bel({ω'}) and Pl({ω}) ≥ Pl({ω'})
+
+# Utility-discounted accuracies (Zaffalon et al. 2012) — score a partial
+# decision d ⊆ Ω against a true class ω with x = I(ω∈d)/|d|
+from evtools.decision import discounted_accuracy, u65, u80, utility_score
+discounted_accuracy(d, omega)              # x
+u65(d, omega)                              # 1.6·x − 0.6·x²  (≡ 0.65 if |d|=2 correct)
+u80(d, omega)                              # 2.2·x − 1.2·x²  (≡ 0.80 if |d|=2 correct)
+utility_score(d, omega, a=1.6, b=0.6)      # generic a·x − b·x²
 ```
 
 Default utility (when `U` is omitted) is the identity matrix (0-1 utility, the
@@ -332,6 +340,8 @@ pytest tests/
 - T. M. Strat. *Decision analysis using belief functions*, International Journal of Approximate Reasoning, Vol. 4, Issues 5-6, pp 391-417, 1990.
 - M. C. M. Troffaes. *Decision making under uncertainty using imprecise probabilities*, International Journal of Approximate Reasoning, Vol. 45, Issue 1, pp 17-29, 2007.
 - L. Ma, T. Denœux. *Partial classification in the belief function framework*, Knowledge-Based Systems, Vol. 214, 106742, 2021.
+- M. Zaffalon, G. Corani, D. Mauá. *Evaluating credal classifiers by utility-discounted predictive accuracy*, International Journal of Approximate Reasoning, Vol. 53, Issue 8, pp 1282-1301, 2012.
+- S. Mutmainah. *Imperfect labels and belief functions for supervised classification*, PhD thesis, Université d'Artois, 2021.
 
 ## License
 

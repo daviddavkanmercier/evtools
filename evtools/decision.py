@@ -24,6 +24,15 @@ atoms as a frozenset of strings.
     strong_dominance(m)      — ω ≻_sd ω' ⟺ Bel({ω}) ≥ Pl({ω'})
     weak_dominance(m)        — ω ≻_wd ω' ⟺ Bel({ω}) ≥ Bel({ω'}) and Pl({ω}) ≥ Pl({ω'})
 
+Utility-discounted accuracies (evaluation metrics for partial decisions)
+------------------------------------------------------------------------
+Score a partial decision d ⊆ Ω against a true class ω (Zaffalon et al. 2012).
+
+    discounted_accuracy(d, ω) — x = I(ω ∈ d) / |d|
+    u65(d, ω)                 — 1.6·x − 0.6·x²   (≡ 0.65 when |d|=2 correct)
+    u80(d, ω)                 — 2.2·x − 1.2·x²   (≡ 0.80 when |d|=2 correct)
+    utility_score(d, ω, a=…, b=…) — generic a·x − b·x²
+
 Utility matrix
 --------------
 U is a numpy array of shape (n, n), where U[i, j] = u(a_i, ω_j) is the
@@ -46,8 +55,9 @@ References
   probabilities. IJAR, 45(1), 17-29.
 - Ma, L., Denœux, T. (2021). Partial classification in the belief function
   framework. Knowledge-Based Systems, 214, 106742.
-- Mutmainah, S. (thesis). Section 1.4: Decision-making with belief functions.
-  Eqs. (1.21)–(1.30).
+- Mutmainah, S. (2021). PhD thesis, Université d'Artois. Sections 1.4 and 3.4.
+- Zaffalon, M., Corani, G., Mauá, D. (2012). Evaluating credal classifiers
+  by utility-discounted predictive accuracy. IJAR, 53(8), 1282-1301.
 """
 
 from __future__ import annotations
@@ -536,3 +546,105 @@ def weak_dominance(m: DSVector) -> frozenset:
             non_dominated.append(m.frame[k])
 
     return frozenset(non_dominated)
+
+
+# ---------------------------------------------------------------------------
+# Utility-discounted accuracies for evaluating partial decisions
+# ---------------------------------------------------------------------------
+
+def discounted_accuracy(d: frozenset, omega: str) -> float:
+    """
+    Discounted accuracy of a partial decision *d* against true class *omega*.
+
+        x = I(ω ∈ d) / |d|
+
+    where I is the indicator function. Returns 0 when d is empty or ω ∉ d.
+    Returns 1/|d| ∈ (0, 1] when ω ∈ d, with the precise correct decision
+    (|d| = 1) scoring 1.0 and larger correct partial decisions scoring less.
+
+    Parameters
+    ----------
+    d : frozenset[str]
+        Partial decision: a (possibly empty) set of atom names. Typically
+        the output of :func:`strong_dominance` or :func:`weak_dominance`.
+    omega : str
+        The true class.
+
+    Returns
+    -------
+    float
+        The discounted accuracy x ∈ [0, 1].
+
+    References
+    ----------
+    Zaffalon, M., Corani, G., Mauá, D. (2012). Evaluating credal classifiers
+    by utility-discounted predictive accuracy. IJAR, 53(8), 1282-1301.
+    Mutmainah, S. (2021). PhD thesis, Université d'Artois. Section 3.4.
+    """
+    if not d or omega not in d:
+        return 0.0
+    return 1.0 / len(d)
+
+
+def utility_score(
+    d: frozenset,
+    omega: str,
+    *,
+    a: float,
+    b: float,
+) -> float:
+    """
+    Generic utility-discounted accuracy: u(x) = a·x − b·x², with x the
+    discounted accuracy of *d* against true class *omega*.
+
+    Special cases (Zaffalon et al. 2012):
+    - u65 corresponds to (a, b) = (1.6, 0.6) — yields 0.65 when |d|=2 correct
+    - u80 corresponds to (a, b) = (2.2, 1.2) — yields 0.80 when |d|=2 correct
+      (more risk-averse decision maker)
+
+    Parameters
+    ----------
+    d : frozenset[str]
+        Partial decision.
+    omega : str
+        True class.
+    a, b : float
+        Coefficients of the utility polynomial.
+
+    Returns
+    -------
+    float
+        u(x) = a·x − b·x², where x = discounted_accuracy(d, omega).
+
+    References
+    ----------
+    Zaffalon, M., Corani, G., Mauá, D. (2012). IJAR, 53(8), 1282-1301.
+    Mutmainah, S. (2021). PhD thesis, Section 3.4, Eqs. (3.4)-(3.5).
+    """
+    x = discounted_accuracy(d, omega)
+    return a * x - b * x * x
+
+
+def u65(d: frozenset, omega: str) -> float:
+    """
+    Utility-discounted accuracy u65 of Zaffalon et al. (2012):
+
+        u65(x) = 1.6·x − 0.6·x²
+
+    where x = I(ω ∈ d)/|d|. Yields 1.0 for a precise correct decision,
+    0.65 for a 2-element correct partial decision, and 0 otherwise.
+    """
+    return utility_score(d, omega, a=1.6, b=0.6)
+
+
+def u80(d: frozenset, omega: str) -> float:
+    """
+    Utility-discounted accuracy u80 of Zaffalon et al. (2012):
+
+        u80(x) = 2.2·x − 1.2·x²
+
+    where x = I(ω ∈ d)/|d|. Yields 1.0 for a precise correct decision,
+    0.80 for a 2-element correct partial decision, and 0 otherwise.
+    Corresponds to a more risk-averse decision maker than :func:`u65`.
+    """
+    return utility_score(d, omega, a=2.2, b=1.2)

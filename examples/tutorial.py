@@ -44,6 +44,8 @@ References
   probabilities. IJAR, 45(1):17-29, 2007.
 - L. Ma, T. Denœux. Partial classification in the belief function framework.
   Knowledge-Based Systems, 214, 106742, 2021.
+- M. Zaffalon, G. Corani, D. Mauá. Evaluating credal classifiers by
+  utility-discounted predictive accuracy. IJAR, 53(8), 1282-1301, 2012.
 """
 
 import numpy as np
@@ -595,3 +597,25 @@ print(f"  Categorical {{a}} → pignistic = {pignistic_decision(m_cat_dec)}, "
 print(f"  Vacuous     → pignistic = {pignistic_decision(m_vac_dec)} "
       f"{DIM}(picks index 0 — uniform tie-break){R}, "
       f"strong_dom = {set(strong_dominance(m_vac_dec))}")
+
+print(f"\n{DIM}# Utility-discounted accuracies (Zaffalon et al. 2012){R}")
+print(f"{DIM}# Score a partial decision d against the true class ω.{R}")
+print(f"{DIM}# x = I(ω∈d)/|d|;  u65(x)=1.6x−0.6x²;  u80(x)=2.2x−1.2x².{R}")
+
+from evtools.decision import discounted_accuracy, u65, u80, utility_score
+
+true_label = "a"
+d_precise = strong_dominance(m_cat_dec)            # {a}
+d_partial = strong_dominance(m_dec)                # {a, h}  (here)
+d_wrong   = frozenset({"r"})                       # wrong precise
+
+print(f"  d = {set(d_precise)}, ω = {true_label!r}:")
+print(f"    x = {discounted_accuracy(d_precise, true_label):.4f}, "
+      f"u65 = {u65(d_precise, true_label):.4f}, u80 = {u80(d_precise, true_label):.4f}")
+print(f"  d = {set(d_partial)}, ω = {true_label!r}:")
+print(f"    x = {discounted_accuracy(d_partial, true_label):.4f}, "
+      f"u65 = {u65(d_partial, true_label):.4f}, u80 = {u80(d_partial, true_label):.4f}")
+print(f"  d = {set(d_wrong)}, ω = {true_label!r}:")
+print(f"    x = {discounted_accuracy(d_wrong, true_label):.4f}, "
+      f"u65 = {u65(d_wrong, true_label):.4f}, u80 = {u80(d_wrong, true_label):.4f}")
+print(f"  {DIM}# Generic: utility_score(d, ω, a=1.6, b=0.6) → {utility_score(d_partial, true_label, a=1.6, b=0.6):.4f} ≡ u65{R}")
