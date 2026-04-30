@@ -34,7 +34,9 @@ References
 - Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2019). On learning
   evidential contextual corrections from soft labels using a measure of
   discrepancy between contour functions. SUM 2019.
-- Mutmainah, S. (2021). PhD thesis, Université d'Artois. Section 2.5.
+- Mutmainah, S. (2021). Learning to adjust an evidential source of information
+  using partially labeled data and partial decisions. PhD thesis, Université
+  d'Artois. Section 2.5.
 """
 
 from __future__ import annotations

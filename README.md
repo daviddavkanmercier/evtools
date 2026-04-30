@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.20.1.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.20.2.
 
 ## Modules
 
@@ -437,7 +437,7 @@ pytest tests/
 - M. C. M. Troffaes. *Decision making under uncertainty using imprecise probabilities*, International Journal of Approximate Reasoning, Vol. 45, Issue 1, pp 17-29, 2007.
 - L. Ma, T. Denœux. *Partial classification in the belief function framework*, Knowledge-Based Systems, Vol. 214, 106742, 2021.
 - M. Zaffalon, G. Corani, D. Mauá. *Evaluating credal classifiers by utility-discounted predictive accuracy*, International Journal of Approximate Reasoning, Vol. 53, Issue 8, pp 1282-1301, 2012.
-- S. Mutmainah. *Imperfect labels and belief functions for supervised classification*, PhD thesis, Université d'Artois, 2021.
+- S. Mutmainah. *Learning to adjust an evidential source of information using partially labeled data and partial decisions*, PhD thesis, Université d'Artois, 2021.
 
 ## License
 

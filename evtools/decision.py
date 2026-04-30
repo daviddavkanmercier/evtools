@@ -51,7 +51,9 @@ References
   probabilities. IJAR, 45(1), 17-29.
 - Ma, L., Denœux, T. (2021). Partial classification in the belief function
   framework. Knowledge-Based Systems, 214, 106742.
-- Mutmainah, S. (2021). PhD thesis, Université d'Artois. Section 1.4.
+- Mutmainah, S. (2021). Learning to adjust an evidential source of information
+  using partially labeled data and partial decisions. PhD thesis, Université
+  d'Artois. Section 1.4.
 """
 
 from __future__ import annotations
