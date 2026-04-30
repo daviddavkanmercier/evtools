@@ -152,11 +152,11 @@ def fit_cd(
     Minimizes E_pl over β ∈ [0, 1]^K using the linearization of CD
     (Pichon et al. 2016, Proposition 12, Eq. 47):
 
-        plᵢ(ωₖ) = 1 − βₖ · (1 − plSᵢ(ωₖ))
+        plᵢ(ωₖ) = 1 - βₖ · (1 - plSᵢ(ωₖ))
 
     Closed form (per atom, before clipping to [0, 1]):
 
-        βₖ = Σᵢ (1 − plSᵢ(ωₖ))(1 − δᵢ,ₖ) / Σᵢ (1 − plSᵢ(ωₖ))²
+        βₖ = Σᵢ (1 - plSᵢ(ωₖ))(1 - δᵢ,ₖ) / Σᵢ (1 - plSᵢ(ωₖ))²
 
     Parameters
     ----------
@@ -231,11 +231,11 @@ def fit_cn(
     Minimizes E_pl over β ∈ [0, 1]^K using the linearization of CN
     (Pichon et al. 2016, Proposition 16, Eq. 54):
 
-        plᵢ(ωₖ) = 0.5 + (plSᵢ(ωₖ) − 0.5) · (2βₖ − 1)
+        plᵢ(ωₖ) = 0.5 + (plSᵢ(ωₖ) - 0.5) · (2βₖ - 1)
 
     Closed form (per atom, before clipping):
 
-        βₖ = Σᵢ (2·plSᵢ − 1)(plSᵢ + δᵢ − 1) / Σᵢ (2·plSᵢ − 1)²
+        βₖ = Σᵢ (2·plSᵢ - 1)(plSᵢ + δᵢ - 1) / Σᵢ (2·plSᵢ - 1)²
 
     Returns
     -------
@@ -314,7 +314,7 @@ def hard_to_soft_labels(
     Raises
     ------
     ValueError
-        If a hard label is not in the frame, or if ``var ≥ mu·(1−mu)``.
+        If a hard label is not in the frame, or if ``var ≥ mu·(1-mu)``.
 
     References
     ----------
@@ -338,7 +338,7 @@ def hard_to_soft_labels(
     if common <= 0.0:
         raise ValueError(
             f"hard_to_soft_labels: variance {var} too large for mean {mu}; "
-            f"requires var < mu·(1−mu) = {mu * (1 - mu)}."
+            f"requires var < mu·(1-mu) = {mu * (1 - mu)}."
         )
     alpha_shape = mu * common
     beta_shape  = (1.0 - mu) * common

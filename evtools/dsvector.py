@@ -363,7 +363,7 @@ class DSVector:
         """
         Build a simple MF A^β (positive simple mass function).
 
-        Focal sets: Ω with mass β, A=subset with mass 1−β.
+        Focal sets: Ω with mass β, A=subset with mass 1-β.
 
         Used in the Contextual Reinforcement (CR) and Contextual
         De-Reinforcement (CdR) correction mechanisms.
@@ -375,7 +375,7 @@ class DSVector:
         subset : frozenset
             The focal set A ⊂ Ω (must be a proper subset of Ω).
         beta : float
-            Mass assigned to Ω ∈ [0, 1]. Mass 1−β is assigned to A.
+            Mass assigned to Ω ∈ [0, 1]. Mass 1-β is assigned to A.
 
         Returns
         -------
@@ -407,7 +407,7 @@ class DSVector:
         """
         Build a negative simple MF A_β (negative simple mass function).
 
-        Focal sets: ∅ with mass β, θ=subset with mass 1−β.
+        Focal sets: ∅ with mass β, θ=subset with mass 1-β.
         This is a subnormal BBA (m(∅) > 0 when β > 0).
 
         Used in the Contextual Discounting (CD) and Contextual
@@ -420,7 +420,7 @@ class DSVector:
         subset : frozenset
             The focal set θ ⊆ Ω.
         beta : float
-            Mass assigned to ∅ ∈ [0, 1]. Mass 1−β is assigned to θ.
+            Mass assigned to ∅ ∈ [0, 1]. Mass 1-β is assigned to θ.
 
         Returns
         -------

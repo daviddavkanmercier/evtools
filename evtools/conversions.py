@@ -34,8 +34,8 @@ plp(m)    — Plausibility probability PlP (vector of length n)
 Supported representations:
     - m   : Basic Belief Assignment (mass function)
     - b   : implicability function,  b(A) = Σ_{B⊆A} m(B)
-    - bel : belief function,         bel(A) = b(A) − m(∅)
-    - pl  : plausibility function,   pl(A) = 1 − b(Ā)
+    - bel : belief function,         bel(A) = b(A) - m(∅)
+    - pl  : plausibility function,   pl(A) = 1 - b(Ā)
     - q   : commonality function,    q(A) = Σ_{B⊇A} m(B)
     - v   : disjunctive weight function  (Denoeux 2008)
     - w   : conjunctive weight function  (Denoeux 2008)
@@ -62,7 +62,7 @@ from .constants import ZERO_MASS
 def btobel(b: np.ndarray) -> np.ndarray:
     """Convert commonality *b* to belief function *bel*.
 
-    bel(A) = b(A) − m(∅)
+    bel(A) = b(A) - m(∅)
     """
     return b - b[0]
 
@@ -84,7 +84,7 @@ def btom(b: np.ndarray) -> np.ndarray:
 def btopl(b: np.ndarray) -> np.ndarray:
     """Convert commonality *b* to plausibility function *pl*.
 
-    pl(A) = 1 − b(Ā)
+    pl(A) = 1 - b(Ā)
     """
     b = np.copy(b)
     lb = len(b)
@@ -208,7 +208,7 @@ def mtow(m: np.ndarray) -> np.ndarray:
 def pltob(pl: np.ndarray) -> np.ndarray:
     """Convert plausibility function *pl* to commonality *b*.
 
-    b(A) = 1 − pl(Ā)
+    b(A) = 1 - pl(Ā)
     """
     pl = np.copy(pl)
     lpl = len(pl)
@@ -463,7 +463,7 @@ def betp(m: np.ndarray) -> np.ndarray:
 
     The pignistic probability of singleton {x} is:
 
-        BetP({x}) = Σ_{A ∋ x} m(A) / (|A| · (1 − m(∅)))
+        BetP({x}) = Σ_{A ∋ x} m(A) / (|A| · (1 - m(∅)))
 
     The result is a vector of length n (one value per atom), not 2^n.
     It sums to 1 when the BBA is not fully contradictory (m(∅) < 1).

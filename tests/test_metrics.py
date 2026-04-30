@@ -35,11 +35,11 @@ class TestDiscountedAccuracy:
 class TestU65:
 
     def test_precise_correct_is_one(self):
-        # x=1: 1.6·1 − 0.6·1 = 1.0
+        # x=1: 1.6·1 - 0.6·1 = 1.0
         assert u65(frozenset({"a"}), "a") == pytest.approx(1.0)
 
     def test_size_2_correct_is_065(self):
-        # x=0.5: 1.6·0.5 − 0.6·0.25 = 0.8 − 0.15 = 0.65
+        # x=0.5: 1.6·0.5 - 0.6·0.25 = 0.8 - 0.15 = 0.65
         assert u65(frozenset({"a", "h"}), "a") == pytest.approx(0.65)
 
     def test_size_3_correct(self):
@@ -57,11 +57,11 @@ class TestU65:
 class TestU80:
 
     def test_precise_correct_is_one(self):
-        # x=1: 2.2 − 1.2 = 1.0
+        # x=1: 2.2 - 1.2 = 1.0
         assert u80(frozenset({"a"}), "a") == pytest.approx(1.0)
 
     def test_size_2_correct_is_080(self):
-        # x=0.5: 2.2·0.5 − 1.2·0.25 = 1.1 − 0.3 = 0.8
+        # x=0.5: 2.2·0.5 - 1.2·0.25 = 1.1 - 0.3 = 0.8
         assert u80(frozenset({"a", "h"}), "a") == pytest.approx(0.80)
 
     def test_wrong_is_zero(self):
@@ -87,7 +87,7 @@ class TestUtilityScore:
         assert utility_score(frozenset({"a"}), "r", a=1.6, b=0.6) == 0.0
 
     def test_custom_coefficients(self):
-        # u(x) = 2x − x² with x=0.5 → 1.0 − 0.25 = 0.75
+        # u(x) = 2x - x² with x=0.5 → 1.0 - 0.25 = 0.75
         d = frozenset({"a", "h"})
         assert utility_score(d, "a", a=2.0, b=1.0) == pytest.approx(0.75)
 

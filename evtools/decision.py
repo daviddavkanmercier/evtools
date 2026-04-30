@@ -386,7 +386,7 @@ def hurwicz(
 
     Selects the act that maximizes:
 
-        E_α(a_i) = α · E_-(a_i) + (1−α) · E^+(a_i)
+        E_α(a_i) = α · E_-(a_i) + (1-α) · E^+(a_i)
 
     Special cases:
     - α = 1 → maximin (fully pessimistic)

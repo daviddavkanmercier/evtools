@@ -7,15 +7,15 @@ Score a partial decision d ⊆ Ω against a true class ω. Typical inputs are
 the output of :func:`evtools.decision.strong_dominance` or :func:`weak_dominance`.
 
     discounted_accuracy(d, ω)              — x = I(ω ∈ d) / |d|
-    u65(d, ω)                              — 1.6·x − 0.6·x²
-    u80(d, ω)                              — 2.2·x − 1.2·x²
-    utility_score(d, ω, a=…, b=…)          — generic a·x − b·x²
+    u65(d, ω)                              — 1.6·x - 0.6·x²
+    u80(d, ω)                              — 2.2·x - 1.2·x²
+    utility_score(d, ω, a=…, b=…)          — generic a·x - b·x²
 
 BBA-valued predictions (evidential classifiers)
 -----------------------------------------------
 Discrepancy between the predicted contour function and a (hard or soft) label.
 
-    pl_loss(predictions, labels)           — Σᵢ Σₖ (plᵢ(ωₖ) − δᵢ,ₖ)²
+    pl_loss(predictions, labels)           — Σᵢ Σₖ (plᵢ(ωₖ) - δᵢ,ₖ)²
     mean_pl_loss(predictions, labels)      — pl_loss / n
 
 Aggregators iterate over a paired list of predictions/labels and return
@@ -99,7 +99,7 @@ def utility_score(
     b: float,
 ) -> float:
     """
-    Generic utility-discounted accuracy: u(x) = a·x − b·x², with x the
+    Generic utility-discounted accuracy: u(x) = a·x - b·x², with x the
     discounted accuracy of *d* against true class *omega*.
 
     Special cases (Zaffalon et al. 2012):
@@ -121,7 +121,7 @@ def u65(d: frozenset, omega: str) -> float:
     """
     Utility-discounted accuracy u65 of Zaffalon et al. (2012):
 
-        u65(x) = 1.6·x − 0.6·x²
+        u65(x) = 1.6·x - 0.6·x²
 
     where x = I(ω ∈ d)/|d|. Yields 1.0 for a precise correct decision,
     0.65 for a 2-element correct partial decision, and 0 otherwise.
@@ -133,7 +133,7 @@ def u80(d: frozenset, omega: str) -> float:
     """
     Utility-discounted accuracy u80 of Zaffalon et al. (2012):
 
-        u80(x) = 2.2·x − 1.2·x²
+        u80(x) = 2.2·x - 1.2·x²
 
     where x = I(ω ∈ d)/|d|. Yields 1.0 for a precise correct decision,
     0.80 for a 2-element correct partial decision, and 0 otherwise.
@@ -189,7 +189,7 @@ def mean_utility_score(
     a: float,
     b: float,
 ) -> float:
-    """Mean generic utility a·x − b·x² over a paired iterable of (prediction, label)."""
+    """Mean generic utility a·x - b·x² over a paired iterable of (prediction, label)."""
     return _mean(utility_score(d, y, a=a, b=b) for d, y in zip(predictions, labels))
 
 
@@ -226,7 +226,7 @@ def pl_loss(
     """
     Pl-based discrepancy between predictions and (hard or soft) labels.
 
-        L(predictions, labels) = Σᵢ Σₖ (plᵢ(ωₖ) − δᵢ,ₖ)²
+        L(predictions, labels) = Σᵢ Σₖ (plᵢ(ωₖ) - δᵢ,ₖ)²
 
     where plᵢ is the contour function of prediction i and δᵢ,ₖ is the truth
     indicator (hard label, str) or the soft label's contour value

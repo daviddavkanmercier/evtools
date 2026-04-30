@@ -267,7 +267,7 @@ class TestHardToSoftLabels:
             hard_to_soft_labels(["x"], ["a", "h", "r"])
 
     def test_invalid_variance_raises(self):
-        # var must be < mu·(1−mu); for mu=0.5, max is 0.25.
+        # var must be < mu·(1-mu); for mu=0.5, max is 0.25.
         with pytest.raises(ValueError, match="variance"):
             hard_to_soft_labels(["a"], ["a", "h"], var=0.5)
 

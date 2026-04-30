@@ -344,8 +344,8 @@ print(f"  discount(s,.6).is_valid = {discount(s, 0.6).is_valid}")
 # 11. Simple MFs and decombination
 # ---------------------------------------------------------------------------
 # Simple MFs are the building blocks of correction mechanisms.
-#   A^β  (DSVector.simple)          — focal sets Ω (mass β) and A (mass 1−β)
-#   A_β  (DSVector.negative_simple) — focal sets ∅ (mass β) and A (mass 1−β)
+#   A^β  (DSVector.simple)          — focal sets Ω (mass β) and A (mass 1-β)
+#   A_β  (DSVector.negative_simple) — focal sets ∅ (mass β) and A (mass 1-β)
 
 section("12. Simple MFs and decombination")
 
@@ -513,7 +513,7 @@ print(f"  C_A @ m == condition(m, A) :  {GREEN}✓ OK{R}" if ok3 else f"  {RED}�
 # BetP and PlP transform a BBA into a probability vector of length n
 # (one value per atom), used for decision making in the TBM.
 #
-# BetP({x}) = Σ_{A∋x} m(A) / (|A| · (1 − m(∅)))   (Smets & Kennes 1994)
+# BetP({x}) = Σ_{A∋x} m(A) / (|A| · (1 - m(∅)))   (Smets & Kennes 1994)
 # PlP({x})  = pl({x}) / Σ_{y∈Ω} pl({y})             (Cobb & Shenoy 2006)
 
 section("16. Pignistic and plausibility probability transformations")

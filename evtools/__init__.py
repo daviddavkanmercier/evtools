@@ -66,5 +66,5 @@ from . import learning
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.23.0"
+__version__ = "0.23.1"
 __all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "DSVector", "Kind"]

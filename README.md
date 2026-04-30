@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.23.0.
+in the Dempster-Shafer theory. Version 0.23.1.
 
 ## Modules
 
@@ -63,11 +63,11 @@ m = DSVector.from_sparse(["a", "b", "c"], {
 Simple MFs are the elementary building blocks of correction mechanisms.
 
 ```python
-# Simple MF A^β — focal sets Ω (mass β) and A (mass 1−β)
+# Simple MF A^β — focal sets Ω (mass β) and A (mass 1-β)
 # Used in Contextual Reinforcement (CR), CdR, CN
 s = DSVector.simple(["a", "b", "c"], frozenset({"a"}), beta=0.6)
 
-# Negative simple MF A_β — focal sets ∅ (mass β) and A (mass 1−β)
+# Negative simple MF A_β — focal sets ∅ (mass β) and A (mass 1-β)
 # Used in Contextual Discounting (CD), CdD
 ns = DSVector.negative_simple(["a", "b", "c"], frozenset({"a"}), beta=0.4)
 ```
@@ -154,8 +154,8 @@ Correction mechanisms for adjusting a BBA based on knowledge about the
 quality of a source (reliability, truthfulness).
 
 Notation:
-- **A^β** — simple MF: focal sets Ω (mass β) and A (mass 1−β)
-- **A_β** — negative simple MF: focal sets ∅ (mass β) and A (mass 1−β)
+- **A^β** — simple MF: focal sets Ω (mass β) and A (mass 1-β)
+- **A_β** — negative simple MF: focal sets ∅ (mass β) and A (mass 1-β)
 
 ```python
 from evtools.corrections import (
@@ -188,7 +188,7 @@ m_cr = contextual_reinforce(m, betas)
 m_cdd = contextual_dediscount(m_cd, betas)    # reverses CD
 m_cdr = contextual_dereinforce(m_cr, betas)   # reverses CR
 
-# Contextual Negating (CN) — source non-truthful with probability 1−β
+# Contextual Negating (CN) — source non-truthful with probability 1-β
 m_cn = contextual_negate(m, {frozenset({"a"}): 0.7})
 ```
 
@@ -264,9 +264,9 @@ accuracy `x = I(ω ∈ d) / |d|` (Zaffalon et al. 2012).
 from evtools.metrics import discounted_accuracy, u65, u80, utility_score
 
 discounted_accuracy(d, omega)             # x
-u65(d, omega)                             # 1.6·x − 0.6·x²  (≡ 0.65 if |d|=2 correct)
-u80(d, omega)                             # 2.2·x − 1.2·x²  (≡ 0.80 if |d|=2 correct)
-utility_score(d, omega, a=1.6, b=0.6)     # generic a·x − b·x²
+u65(d, omega)                             # 1.6·x - 0.6·x²  (≡ 0.65 if |d|=2 correct)
+u80(d, omega)                             # 2.2·x - 1.2·x²  (≡ 0.80 if |d|=2 correct)
+utility_score(d, omega, a=1.6, b=0.6)     # generic a·x - b·x²
 ```
 
 ### Mean aggregators over a dataset
@@ -374,7 +374,7 @@ betas_cd_soft = fit_cd(predictions, soft)
 
 For each instance `i`, the algorithm draws `p_i ~ Beta(μ, v)` and
 `b_i ~ Bernoulli(p_i)`; if `b_i = 1` the soft label becomes a simple MF
-with `m({ω_{k_i}}) = 1 − p_i` and `m(Ω) = p_i` for a uniformly random
+with `m({ω_{k_i}}) = 1 - p_i` and `m(Ω) = p_i` for a uniformly random
 class `k_i`, otherwise the hard label is preserved.
 
 ### Per-group learning of contextual corrections

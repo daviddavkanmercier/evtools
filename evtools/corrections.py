@@ -17,7 +17,7 @@ contextual_negate(m, betas)          — Contextual negating
 Hierarchy of discounting
 ------------------------
 discount(m, α)
-    Special case of theta_contextual_discount with Θ = {Ω} and β = 1−α.
+    Special case of theta_contextual_discount with Θ = {Ω} and β = 1-α.
 
 contextual_discount(m, betas)
     Special case of theta_contextual_discount with Θ = singletons of Ω.
@@ -36,9 +36,9 @@ Summary table (Pichon et al. 2016, Figure 2)
 
 Notation for simple MFs
 ------------------------
-  A_β   : negative simple MF — focal sets ∅ (mass β) and θ (mass 1−β)
+  A_β   : negative simple MF — focal sets ∅ (mass β) and θ (mass 1-β)
            used in CD, CdD
-  A^β   : positive simple MF  — focal sets Ω (mass β) and A (mass 1−β)
+  A^β   : positive simple MF  — focal sets Ω (mass β) and A (mass 1-β)
            used in CR, CdR
 
 References
@@ -153,17 +153,17 @@ def theta_contextual_discount(
         αm = mS ∪ (∪_{θℓ ∈ Θ} θℓ_{βℓ})
 
     where θℓ_{βℓ} is the negative simple MF with focal sets ∅ (mass βℓ)
-    and θℓ (mass 1−βℓ), and ∪ is the TBM disjunctive rule.
+    and θℓ (mass 1-βℓ), and ∪ is the TBM disjunctive rule.
 
     Interpretation: βℓ is the agent's degree of belief that the source is
     reliable when the true value of the variable of interest lies in context
     θℓ. The source is a negative liar in the complement of θℓ with mass
-    1−βℓ (Pichon et al. 2016, Remark 5 and Proposition 7).
+    1-βℓ (Pichon et al. 2016, Remark 5 and Proposition 7).
 
     Special cases
     -------------
     - Classical discounting (Shafer 1976):
-        Θ = {Ω},  betas = {frozenset(frame): 1−α}
+        Θ = {Ω},  betas = {frozenset(frame): 1-α}
     - Ω-contextual discounting (Mercier et al. 2008, Section 3):
         Θ = singletons {{x1}, ..., {xK}}
 
@@ -286,10 +286,10 @@ def discount(m: DSVector, beta: float) -> DSVector:
 
     The corrected BBA satisfies (Shafer 1976, p. 252):
         βm(A) = β · m(A)        for all A ⊊ Ω
-        βm(Ω) = β · m(Ω) + (1−β)
+        βm(Ω) = β · m(Ω) + (1-β)
 
     Interpretation: β is the agent's degree of belief that the source is
-    reliable. With mass 1−β, the source is irrelevant and is replaced by
+    reliable. With mass 1-β, the source is irrelevant and is replaced by
     the vacuous BBA.
 
     Parameters
@@ -339,16 +339,16 @@ def contextual_reinforce(
         CR(mS) = mS ∩ (∩_{A ∈ A} A^{βA})
 
     where A^{βA} is the simple MF with focal sets Ω (mass βA) and A
-    (mass 1−βA).
+    (mass 1-βA).
 
     Unlike CD, the set A of contexts need not form a partition of Ω.
 
     Interpretation (Pichon et al. 2016, Proposition 5): for each context A,
     the source is truthful with mass βA and is a positive liar in A with
-    mass 1−βA (it lies only when it declares a value in A as possible).
+    mass 1-βA (it lies only when it declares a value in A as possible).
 
     When A = {∅} and β = β₀, CR reduces to reinforcement (the dual of
-    classical discounting), which transfers a fraction 1−β₀ of the mass
+    classical discounting), which transfers a fraction 1-β₀ of the mass
     of non-empty focal sets to the empty set.
 
     Parameters
@@ -402,7 +402,7 @@ def contextual_dediscount(
         CdD(mS) = mS 6∪ (∪_{A ∈ A} A_{βA})
 
     where A_{βA} is the negative simple MF with focal sets ∅ (mass βA)
-    and A (mass 1−βA).
+    and A (mass 1-βA).
 
     Use case: an agent Ag received a source output mS, applied CD with
     degrees β, and transmitted the result mCD. A second agent Ag2 who
@@ -414,7 +414,7 @@ def contextual_dediscount(
     The result may not be a valid BBA (negative masses or sum ≠ 1).
     Always check `.is_valid` after calling this function.
     Validity requires that the original CD was actually applied
-    (1 − mS(X) ≤ βA ≤ 1 for classical discounting).
+    (1 - mS(X) ≤ βA ≤ 1 for classical discounting).
 
     Parameters
     ----------
@@ -468,7 +468,7 @@ def contextual_dereinforce(
         CdR(mS) = mS 6∩ (∩_{A ∈ A} A^{βA})
 
     where A^{βA} is the simple MF with focal sets Ω (mass βA) and A
-    (mass 1−βA).
+    (mass 1-βA).
 
     Dual of CdD: CdD is the inverse of CD, CdR is the inverse of CR.
 
@@ -532,23 +532,23 @@ def contextual_negate(
         CN(mS) = mS ∩̂ (∩̂_{A ∈ A} A^{βA})
 
     where ∩̂ is the equivalence combination rule and A^{βA} is the simple
-    MF with focal sets Ω (mass βA) and A (mass 1−βA).
+    MF with focal sets Ω (mass βA) and A (mass 1-βA).
 
     Implemented directly from the BBC procedure (Proposition 9 of Pichon
     et al. 2016): for each context A and focal set B of the current BBA,
         - mass βA stays on B (truthful part)
-        - mass 1−βA goes to B∩̂A = (B∩A) ∪ (B̄∩Ā) (non-truthful part)
+        - mass 1-βA goes to B∩̂A = (B∩A) ∪ (B̄∩Ā) (non-truthful part)
     applied iteratively for each context.
 
     Interpretation: for each context A, the source is truthful with mass
-    βA and non-truthful in A with mass 1−βA — it tells the contrary of
+    βA and non-truthful in A with mass 1-βA — it tells the contrary of
     what it knows, but only for the values in A.
 
     Special cases
     -------------
     - βA = 1 for all A: no correction (fully truthful source).
     - A = {∅}, βA = 0: pure negation — m(B) → m(B̄) for all B ⊆ Ω.
-    - A = {∅}, β ∈ (0,1): classical negating — m = β·mS + (1−β)·m̄S.
+    - A = {∅}, β ∈ (0,1): classical negating — m = β·mS + (1-β)·m̄S.
 
     Parameters
     ----------
@@ -585,7 +585,7 @@ def contextual_negate(
             # Truthful part: mass β stays on focal set B
             if beta > ZERO_MASS:
                 new_sparse[focal] = new_sparse.get(focal, 0.0) + beta * value
-            # Non-truthful part: mass (1−β) goes to B∩̂A = (B∩A) ∪ (B̄∩Ā)
+            # Non-truthful part: mass (1-β) goes to B∩̂A = (B∩A) ∪ (B̄∩Ā)
             if 1.0 - beta > ZERO_MASS:
                 b_inter_a = focal & subset
                 bbar_inter_abar = (frozenset(m.frame) - focal) & a_bar
