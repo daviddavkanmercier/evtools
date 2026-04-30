@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.20.2.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.21.0.
 
 ## Modules
 
@@ -13,7 +13,7 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.20.2.
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
 | `evtools.decision` | Decision criteria: maximin, maximax, pignistic, plp, hurwicz, dominance |
 | `evtools.metrics` | Performance metrics: discounted_accuracy, u65, u80, pl_loss + aggregators |
-| `evtools.learning` | Learning of contextual correction parameters: fit_cd, fit_cr, fit_cn |
+| `evtools.learning` | Learning of contextual correction parameters (fit_cd, fit_cr, fit_cn) and soft-label generation (hard_to_soft_labels) |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
@@ -339,6 +339,33 @@ E_pl, DSVectors minimize Ẽ_pl, and they can be mixed in the same call.
 **Validation**: the test suite reproduces the worked example of Pichon
 2016 (Tables 4 & 6) numerically — both the optimal β vectors and the
 attained `pl_loss` values, for both sensors and all three corrections.
+
+### Generating soft labels from hard labels
+
+When only hard labels are available, soft labels can be synthesized to
+study the soft-label setting (Mutmainah 2021, Algorithm 2 — based on
+Côme et al. 2009 and Quost et al. 2017).
+
+```python
+from evtools.learning import hard_to_soft_labels
+import numpy as np
+
+rng  = np.random.default_rng(42)
+soft = hard_to_soft_labels(
+    hard_labels=["a", "h", "r", "a"],
+    frame=["a", "h", "r"],
+    mu=0.5,                 # mean of the Beta from which p_i is drawn
+    var=0.04,               # variance of the Beta
+    rng=rng,
+)
+# soft is a list[DSVector] usable directly as labels for pl_loss / fit_*
+betas_cd_soft = fit_cd(predictions, soft)
+```
+
+For each instance `i`, the algorithm draws `p_i ~ Beta(μ, v)` and
+`b_i ~ Bernoulli(p_i)`; if `b_i = 1` the soft label becomes a simple MF
+with `m({ω_{k_i}}) = 1 − p_i` and `m(Ω) = p_i` for a uniformly random
+class `k_i`, otherwise the hard label is preserved.
 
 ### Hard-classification metrics: use scikit-learn
 

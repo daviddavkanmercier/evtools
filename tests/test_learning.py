@@ -226,3 +226,82 @@ class TestSoftLabels:
         betas = fit_cd(SENSOR_1, labels_mixed)
         for b in betas.values():
             assert 0.0 <= b <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# hard_to_soft_labels (Algorithm 2 of Mutmainah 2021)
+# ---------------------------------------------------------------------------
+
+import numpy as np
+from evtools.learning import hard_to_soft_labels
+
+
+class TestHardToSoftLabels:
+
+    def test_output_length_and_type(self):
+        rng = np.random.default_rng(0)
+        soft = hard_to_soft_labels(["a", "h", "r"], ["a", "h", "r"], rng=rng)
+        assert len(soft) == 3
+        assert all(isinstance(s, DSVector) for s in soft)
+
+    def test_output_frame_matches_input(self):
+        rng = np.random.default_rng(0)
+        soft = hard_to_soft_labels(["a"] * 5, ["a", "h", "r"], rng=rng)
+        for s in soft:
+            assert list(s.frame) == ["a", "h", "r"]
+
+    def test_each_soft_label_is_valid_bba(self):
+        rng = np.random.default_rng(0)
+        soft = hard_to_soft_labels(["a", "h", "r", "a"] * 25, ["a", "h", "r"], rng=rng)
+        assert all(s.is_valid for s in soft)
+
+    def test_deterministic_with_fixed_rng(self):
+        labels = ["a", "h", "r", "a", "h"]
+        s1 = hard_to_soft_labels(labels, ["a", "h", "r"], rng=np.random.default_rng(42))
+        s2 = hard_to_soft_labels(labels, ["a", "h", "r"], rng=np.random.default_rng(42))
+        for a, b in zip(s1, s2):
+            np.testing.assert_allclose(a.contour(), b.contour())
+
+    def test_label_not_in_frame_raises(self):
+        with pytest.raises(ValueError, match="not in frame"):
+            hard_to_soft_labels(["x"], ["a", "h", "r"])
+
+    def test_invalid_variance_raises(self):
+        # var must be < mu·(1−mu); for mu=0.5, max is 0.25.
+        with pytest.raises(ValueError, match="variance"):
+            hard_to_soft_labels(["a"], ["a", "h"], var=0.5)
+
+    def test_each_soft_label_has_correct_contour_shape(self):
+        # Either categorical (one 1, others 0) — case b_i=0
+        # or simple (one 1, others equal to p_i ∈ [0,1]) — case b_i=1
+        rng = np.random.default_rng(0)
+        soft = hard_to_soft_labels(["a"] * 200, ["a", "h", "r"], rng=rng)
+        for s in soft:
+            c = s.contour()
+            ones_count = int(np.sum(np.isclose(c, 1.0)))
+            assert ones_count >= 1   # at least one atom has plausibility 1
+            others = c[~np.isclose(c, 1.0)]
+            if len(others) > 0:
+                # All non-1 entries should be equal (the same p_i)
+                assert np.allclose(others, others[0])
+                assert 0.0 <= others[0] <= 1.0
+
+    def test_mean_imprecision_matches_theory(self):
+        # For Beta(μ=0.5, v=0.04): E[X²] = Var + E[X]² = 0.04 + 0.25 = 0.29.
+        # Each soft label's min-contour is p_i if b_i=1, 0 if b_i=0.
+        # E[min-contour] = E[p_i · 1_{b_i=1}] = E[p_i · p_i] = E[p_i²] = 0.29.
+        rng = np.random.default_rng(123)
+        soft = hard_to_soft_labels(["a"] * 5000, ["a", "h", "r"], rng=rng)
+        avg_min = float(np.mean([s.contour().min() for s in soft]))
+        assert abs(avg_min - 0.29) < 0.02   # tolerance on 5000 samples
+
+    def test_usable_as_pl_loss_input(self):
+        # End-to-end: generate soft labels and feed to pl_loss alongside predictions.
+        from evtools.metrics import pl_loss
+        rng = np.random.default_rng(7)
+        FRAME = ["a", "h", "r"]
+        hard = ["a", "h", "r"]
+        soft = hard_to_soft_labels(hard, FRAME, rng=rng)
+        preds = [DSVector.from_focal(FRAME, {y: 1.0}) for y in hard]
+        loss = pl_loss(preds, soft)
+        assert loss >= 0.0

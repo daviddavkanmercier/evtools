@@ -252,3 +252,116 @@ def fit_cn(
     den = np.sum(two_pl_minus_1 ** 2,         axis=0)
     # CN contexts are the complements of singletons (Pichon 2016, Section 8.4).
     return _betas_dict_complements(frame, _ratio_clipped(num, den))
+
+
+# ---------------------------------------------------------------------------
+# Soft-label generation (Algorithm 2 of Mutmainah 2021)
+# ---------------------------------------------------------------------------
+
+def hard_to_soft_labels(
+    hard_labels: Sequence[str],
+    frame: Sequence[str],
+    *,
+    mu: float = 0.5,
+    var: float = 0.04,
+    rng: "np.random.Generator | None" = None,
+) -> list[DSVector]:
+    """
+    Generate soft labels from hard labels (Mutmainah 2021, Algorithm 2).
+
+    For each instance:
+
+    1. Draw p_i ~ Beta with mean *mu* and variance *var*.
+    2. Draw b_i ~ Bernoulli(p_i).
+    3. If b_i = 1, pick a uniformly random class k_i ∈ Ω and emit a soft
+       label whose contour function is::
+
+           plᵢ(ω_{k_i}) = 1,    plᵢ(ω_k) = p_i  for k ≠ k_i
+
+       which corresponds to the simple MF
+       :math:`m(\\{\\omega_{k_i}\\}) = 1 - p_i,\\ m(\\Omega) = p_i`.
+    4. Otherwise (b_i = 0), keep the hard label as a categorical BBA.
+
+    The procedure tends to produce labels that are all the more imprecise
+    as the most plausible class differs from the true one, which is the
+    intended behaviour described by the algorithm.
+
+    Parameters
+    ----------
+    hard_labels : sequence of str
+        True classes — one atom name per instance.
+    frame : sequence of str
+        The frame Ω. Each ``hard_labels[i]`` must be in ``frame``.
+    mu : float, default 0.5
+        Mean of the Beta distribution from which p_i is drawn.
+    var : float, default 0.04
+        Variance of the Beta distribution. Must satisfy
+        ``var < mu * (1 - mu)`` (otherwise the Beta is undefined).
+    rng : numpy.random.Generator, optional
+        Random number generator. Defaults to ``numpy.random.default_rng()``,
+        which means non-reproducible draws unless one is provided.
+
+    Returns
+    -------
+    list[DSVector]
+        One DSVector per instance, ready to be used as soft labels for
+        :func:`evtools.metrics.pl_loss`, :func:`fit_cd`, :func:`fit_cr`,
+        or :func:`fit_cn`.
+
+    Raises
+    ------
+    ValueError
+        If a hard label is not in the frame, or if ``var ≥ mu·(1−mu)``.
+
+    References
+    ----------
+    Côme, E., Oukhellou, L., Denœux, T., Aknin, P. (2009). Learning from
+    partially supervised data using mixture models and belief functions.
+    Pattern Recognition, 42(3), 334-348.
+    Quost, B., Denœux, T., Li, S. (2017). Parametric classification with
+    soft labels using the evidential EM algorithm: linear discriminant
+    analysis versus logistic regression. Advances in Data Analysis and
+    Classification, 11(4), 659-690.
+    Mutmainah, S. (2021). Learning to adjust an evidential source of
+    information using partially labeled data and partial decisions. PhD
+    thesis, Université d'Artois. Algorithm 2.
+    """
+    if rng is None:
+        rng = np.random.default_rng()
+
+    # Convert (mu, var) into the (α, β) shape parameters of Beta(α, β).
+    common = mu * (1.0 - mu) / var - 1.0
+    if common <= 0.0:
+        raise ValueError(
+            f"hard_to_soft_labels: variance {var} too large for mean {mu}; "
+            f"requires var < mu·(1−mu) = {mu * (1 - mu)}."
+        )
+    alpha_shape = mu * common
+    beta_shape  = (1.0 - mu) * common
+
+    frame_list = list(frame)
+    K = len(frame_list)
+    soft_labels: list[DSVector] = []
+
+    for label in hard_labels:
+        if label not in frame_list:
+            raise ValueError(
+                f"hard_to_soft_labels: label {label!r} not in frame {frame_list}."
+            )
+
+        p_i = float(rng.beta(alpha_shape, beta_shape))
+        b_i = bool(rng.binomial(1, p_i))
+
+        if b_i:
+            # Random "most plausible" class — may or may not be the true one.
+            k_i = frame_list[int(rng.integers(K))]
+            soft_labels.append(
+                DSVector.simple(frame_list, frozenset({k_i}), beta=p_i)
+            )
+        else:
+            # Keep the hard label as a categorical BBA.
+            soft_labels.append(
+                DSVector.from_focal(frame_list, {label: 1.0})
+            )
+
+    return soft_labels

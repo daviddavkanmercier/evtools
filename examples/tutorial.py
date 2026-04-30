@@ -738,3 +738,17 @@ soft_labels = [DSVector.from_focal(frame, {y: 1.0}) for y in truth1]
 betas_soft  = fit_cd(sensor1, soft_labels)
 print(f"  fit_cd with categorical soft labels matches hard:")
 print(f"    β values (sorted) = {sorted(round(v, 4) for v in betas_soft.values())}")
+
+print(f"\n{DIM}# Synthesizing soft labels from hard ones (Mutmainah 2021, Algorithm 2){R}")
+print(f"{DIM}# Based on Côme et al. (2009) and Quost et al. (2017).{R}")
+from evtools.learning import hard_to_soft_labels
+
+rng = np.random.default_rng(seed=42)
+synthetic_soft = hard_to_soft_labels(truth1, frame, mu=0.5, var=0.04, rng=rng)
+for hard, sft in zip(truth1, synthetic_soft):
+    print(f"  hard {hard!r} → soft contour = {sft.contour().round(3)}")
+
+# Reuse the synthesized soft labels as targets for Ẽ_pl
+betas_synth = fit_cd(sensor1, synthetic_soft)
+print(f"\n  β learned from these soft labels:")
+print(f"    {tuple(round(betas_synth[frozenset({a})], 3) for a in frame)}")
