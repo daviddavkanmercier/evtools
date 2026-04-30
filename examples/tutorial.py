@@ -25,7 +25,8 @@ Sections
 14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
 15. BetP and PlP          — pignistic and plausibility probability transformations
 16. Decision criteria     — maximin, maximax, pignistic, plp, hurwicz, dominance
-17. Performance metrics   — u65, u80, sklearn for ROC/AUC on hard predictions
+17. Performance metrics   — u65, u80, pl_loss; sklearn for ROC/AUC
+18. Learning corrections  — fit_cd, fit_cr, fit_cn (Pichon 2016 closed-form)
 
 References
 ----------
@@ -676,3 +677,64 @@ try:
         print(f"  {DIM}roc_auc_score skipped: only one class in y_true (illustrative dataset){R}")
 except ImportError:
     print(f"  {DIM}(install scikit-learn to run this part: `pip install scikit-learn`){R}")
+
+
+# ---------------------------------------------------------------------------
+# 19. Learning contextual correction parameters from labeled data
+# ---------------------------------------------------------------------------
+# evtools.learning provides closed-form least-squares fits of the β
+# parameters of CD, CR, CN that minimize pl_loss (Pichon et al. 2016,
+# Propositions 12, 14, 16). It accepts hard labels (str, → E_pl) or
+# soft labels (DSVector, → Ẽ_pl), mixable in the same call.
+
+section("19. Learning contextual corrections (fit_cd / fit_cr / fit_cn)")
+
+from evtools.learning import fit_cd, fit_cr, fit_cn
+from evtools.corrections import contextual_discount, contextual_reinforce, contextual_negate
+from evtools.metrics import pl_loss
+
+# Pichon 2016 Table 4 — Sensor 1: 4 BBAs with known true classes.
+sensor1 = [
+    DSVector.from_focal(frame, {"r": 0.5, "h,r": 0.3, "a,h,r": 0.2}),  # truth = a
+    DSVector.from_focal(frame, {"h": 0.5, "r": 0.2, "a,h,r": 0.3}),    # truth = h
+    DSVector.from_focal(frame, {"h": 0.4, "a,r": 0.6}),                # truth = a
+    DSVector.from_focal(frame, {"a,r": 0.6, "h,r": 0.4}),              # truth = r
+]
+truth1 = ["a", "h", "a", "r"]
+
+print(f"{DIM}# Source outputs and ground truth (Pichon 2016 Table 4, Sensor 1){R}")
+for i, (m_S, y) in enumerate(zip(sensor1, truth1)):
+    print(f"  o{i+1}: pl(singletons) = {m_S.contour().round(3)}, truth = {y!r}")
+
+print(f"\n{DIM}# Baseline pl_loss (no correction){R}")
+loss0 = pl_loss(sensor1, truth1)
+print(f"  pl_loss = {loss0:.4f}")
+
+print(f"\n{DIM}# Fit each correction → apply → measure pl_loss{R}")
+print(f"{DIM}#   (expected from Pichon 2016 Table 6, Sensor 1):{R}")
+print(f"{DIM}#   CD: β=(0.76, 1.00, 1.00),  pl_loss=3.39{R}")
+print(f"{DIM}#   CR: β=(0.94, 0.66, 0.38),  pl_loss=2.33{R}")
+print(f"{DIM}#   CN: β=(0.33, 1.00, 0.45),  pl_loss=2.59{R}")
+print()
+
+for name, fit_fn, apply_fn in [
+    ("CD", fit_cd, contextual_discount),
+    ("CR", fit_cr, contextual_reinforce),
+    ("CN", fit_cn, contextual_negate),
+]:
+    betas    = fit_fn(sensor1, truth1)
+    corrected = [apply_fn(m, betas) for m in sensor1]
+    loss     = pl_loss(corrected, truth1)
+    # Print β as (β_a, β_h, β_r). For CD keys are singletons; for CR/CN they are complements.
+    if name == "CD":
+        bs = tuple(betas[frozenset({a})] for a in frame)
+    else:
+        omega = frozenset(frame)
+        bs = tuple(betas[omega - {a}] for a in frame)
+    print(f"  {name}:  β = ({bs[0]:.2f}, {bs[1]:.2f}, {bs[2]:.2f})   pl_loss = {loss:.4f}")
+
+print(f"\n{DIM}# Soft labels: same API, returns Ẽ_pl optimal β{R}")
+soft_labels = [DSVector.from_focal(frame, {y: 1.0}) for y in truth1]
+betas_soft  = fit_cd(sensor1, soft_labels)
+print(f"  fit_cd with categorical soft labels matches hard:")
+print(f"    β values (sorted) = {sorted(round(v, 4) for v in betas_soft.values())}")

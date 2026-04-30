@@ -31,6 +31,12 @@ evtools.metrics
     discounted_accuracy, u65, u80, utility_score, pl_loss (E_pl/Ẽ_pl),
     plus mean_* aggregators.
 
+evtools.learning
+    Learning of contextual correction parameters from labeled data:
+    fit_cd, fit_cr, fit_cn — closed-form least-squares minimizers of
+    pl_loss (Pichon et al. 2016, Propositions 12, 14, 16). Hard or
+    soft labels.
+
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
     DSVector.__repr__ and _repr_html_ delegate here.
@@ -53,8 +59,9 @@ from . import combinations
 from . import corrections
 from . import decision
 from . import metrics
+from . import learning
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.19.0"
-__all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "display", "DSVector", "Kind"]
+__version__ = "0.20.0"
+__all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "DSVector", "Kind"]

@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.19.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.20.0.
 
 ## Modules
 
@@ -12,7 +12,8 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.19.0.
 | `evtools.combinations` | Combination rules: CRC, Dempster, DRC, Cautious, Bold, and decombinations |
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
 | `evtools.decision` | Decision criteria: maximin, maximax, pignistic, plp, hurwicz, dominance |
-| `evtools.metrics` | Performance metrics: discounted_accuracy, u65, u80 + mean aggregators |
+| `evtools.metrics` | Performance metrics: discounted_accuracy, u65, u80, pl_loss + aggregators |
+| `evtools.learning` | Learning of contextual correction parameters: fit_cd, fit_cr, fit_cn |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
@@ -307,6 +308,37 @@ The `DSVector.contour()` method returns the length-K vector of singleton
 plausibilities — the basic building block for both `pl_loss` and the
 strong/weak dominance decision criteria. Works regardless of the source
 kind (m, bel, pl, b, q, v, w).
+
+---
+
+## `evtools.learning`
+
+Learning of contextual correction parameters β from labeled data, by
+**closed-form least-squares minimization** of `pl_loss` (Pichon et al.
+2016, Propositions 12, 14, 16). The K parameters decouple per atom, so
+each β_k has an analytical expression (then clipped to [0, 1]).
+
+```python
+from evtools.learning import fit_cd, fit_cr, fit_cn
+from evtools.corrections import contextual_discount, contextual_reinforce, contextual_negate
+
+# predictions: list[DSVector]   — source BBA outputs (training set)
+# labels:      list[str | DSVector]  — hard or soft labels
+
+betas_cd = fit_cd(predictions, labels)   # → contextual_discount(m, betas_cd)
+betas_cr = fit_cr(predictions, labels)   # → contextual_reinforce(m, betas_cr)
+betas_cn = fit_cn(predictions, labels)   # → contextual_negate   (m, betas_cn)
+
+# Apply the learnt correction to a new instance
+m_corrected = contextual_discount(m_test, betas_cd)
+```
+
+**Hard / soft labels**: same polymorphism as `pl_loss` — strings minimize
+E_pl, DSVectors minimize Ẽ_pl, and they can be mixed in the same call.
+
+**Validation**: the test suite reproduces the worked example of Pichon
+2016 (Tables 4 & 6) numerically — both the optimal β vectors and the
+attained `pl_loss` values, for both sensors and all three corrections.
 
 ### Hard-classification metrics: use scikit-learn
 
