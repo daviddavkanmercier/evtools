@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.22.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.23.0.
 
 ## Modules
 
@@ -96,10 +96,14 @@ for subset, value in m: ...  # iterate over non-zero focal elements
 ### Display
 
 ```python
-m.display("ansi")    # colored terminal (default __repr__)
-m.display("plain")   # plain text, no colors
-m.display("html")    # HTML table (Jupyter renders this automatically)
-m.display("latex")   # LaTeX tabular for papers
+m.to_ansi()    # colored terminal (also used by __repr__)
+m.to_string()  # plain text, no colors
+m.to_html()    # HTML table (Jupyter renders this automatically)
+m.to_latex()   # LaTeX tabular for papers
+
+# Multi-representation table: m + bel + pl + b + q (+ v if subnormal, + w if non-dogmatic)
+m.to_string(all_kinds=True)
+m.to_latex(all_kinds=True)
 ```
 
 ---
@@ -309,6 +313,12 @@ plausibilities — the basic building block for both `pl_loss` and the
 strong/weak dominance decision criteria. Works regardless of the source
 kind (m, bel, pl, b, q, v, w).
 
+### Hard-classification metrics: use scikit-learn
+
+For ROC, AUC, accuracy, precision/recall, etc. on hard predictions, extract a
+probability vector (e.g. via `m.to_betp()` or `m.to_plp()`) and feed it to
+`sklearn.metrics`. The tutorials show end-to-end examples.
+
 ---
 
 ## `evtools.learning`
@@ -400,32 +410,29 @@ predictions_test_corrected = apply_per_group(model, predictions_test)
 The model is a small `NamedTuple` (`GroupedCorrectionModel`) with three
 fields: `groups`, `fallback`, `dominance`.
 
-### Hard-classification metrics: use scikit-learn
-
-For ROC, AUC, accuracy, precision/recall, etc. on hard predictions, extract a
-probability vector (e.g. via `m.to_betp()` or `m.to_plp()`) and feed it to
-`sklearn.metrics`. The tutorials show end-to-end examples.
-
 ---
 
 ## `evtools.display`
 
 Four output formats, all adapting the column header to the kind (`m`, `bel`, `pl`, ...).
+Each is exposed both as a module function and as a `DSVector` method.
 In Jupyter notebooks, `DSVector._repr_html_()` is called automatically.
 
 ```python
-from evtools.display import repr_plain, repr_html, repr_latex, display_all
+from evtools.display import to_string, to_ansi, to_html, to_latex
 
-print(repr_plain(m))   # plain text, no colors
-print(repr_latex(m))   # LaTeX tabular for papers
-m.display("ansi")      # colored terminal (default)
-m.display("html")      # HTML table
+# Module functions
+print(to_string(m))   # plain text, no colors
+print(to_latex(m))    # LaTeX tabular for papers
 
-# Show all representations in one table
-# v added if m is subnormal (m(∅) > 0)
-# w added if m is non-dogmatic (m(Ω) > 0)
-print(display_all(m, "plain"))
-m.display_all()        # same via method
+# DSVector methods (equivalent)
+m.to_ansi()           # colored terminal (also used by __repr__)
+m.to_html()           # HTML table
+
+# Multi-representation table — m + bel + pl + b + q in a single table.
+# v added if m is subnormal (m(∅) > 0); w added if m is non-dogmatic (m(Ω) > 0).
+print(m.to_string(all_kinds=True))
+print(m.to_latex(all_kinds=True))
 ```
 
 ---

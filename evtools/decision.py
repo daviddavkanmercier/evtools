@@ -69,7 +69,7 @@ from typing import Callable
 import numpy as np
 
 from .dsvector import DSVector, Kind
-from .constants import ZERO_MASS
+from .constants import VALID_TOL
 
 
 # ---------------------------------------------------------------------------
@@ -482,7 +482,7 @@ def strong_dominance(m: DSVector) -> frozenset:
     non_dominated = []
     for k in range(n):
         dominated = any(
-            bel_s[j] >= pl_s[k] - 1e-10
+            bel_s[j] >= pl_s[k] - VALID_TOL
             for j in range(n) if j != k
         )
         if not dominated:
@@ -539,7 +539,7 @@ def weak_dominance(m: DSVector) -> frozenset:
     non_dominated = []
     for k in range(n):
         dominated = any(
-            bel_s[j] >= bel_s[k] - 1e-10 and pl_s[j] >= pl_s[k] - 1e-10
+            bel_s[j] >= bel_s[k] - VALID_TOL and pl_s[j] >= pl_s[k] - VALID_TOL
             for j in range(n) if j != k
         )
         if not dominated:

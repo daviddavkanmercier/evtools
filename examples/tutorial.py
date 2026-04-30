@@ -20,8 +20,8 @@ Sections
 10. Correction mechanisms — discount, contextual_discount, CR, CdD, CN
 11. Simple MFs            — DSVector.simple, DSVector.negative_simple
     Decombination         — decombine_crc, decombine_drc
-12. Display formats       — ansi, plain, html, latex
-13. display_all           — all representations in one table
+12. Display formats       — to_string, to_ansi, to_html, to_latex
+13. all_kinds=True        — all representations in one table
 14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
 15. BetP and PlP          — pignistic and plausibility probability transformations
 16. Decision criteria     — maximin, maximax, pignistic, plp, hurwicz, dominance
@@ -385,81 +385,74 @@ print(f"  Recovers m1_sub: {GREEN}✓ OK{R}" if ok_d else f"  {RED}✗ MISMATCH{
 
 section("13. Display formats")
 
-from evtools.display import repr_plain, repr_html, repr_latex
+from evtools.display import to_string, to_html, to_latex
 
 m = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
 
 # ANSI (default __repr__)
-print(f"{DIM}# repr_ansi — colored terminal (default){R}\n")
+print(f"{DIM}# to_ansi — colored terminal (also used by __repr__){R}\n")
 print(m)
 
 # Plain text
-print(f"\n{DIM}# repr_plain — no colors, for logs and files{R}\n")
-print(repr_plain(m))
+print(f"\n{DIM}# to_string — no colors, for logs and files{R}\n")
+print(m.to_string())
 
 # Column header adapts to kind
 print(f"\n{DIM}# Column header adapts to the kind{R}")
 for kind_fn, label in [("to_bel","Belief"), ("to_pl","Plausibility"), ("to_q","Implicability")]:
     v = getattr(m, kind_fn)()
     print(f"\n{DIM}# {label} function — header shows '{v.kind.value}'{R}")
-    print(repr_plain(v))
+    print(v.to_string())
 
 # LaTeX
-print(f"\n{DIM}# repr_latex — ready to paste in a LaTeX paper{R}\n")
-print(repr_latex(m))
+print(f"\n{DIM}# to_latex — ready to paste in a LaTeX paper{R}\n")
+print(m.to_latex())
 
-# display() method
-print(f"\n{DIM}# display(fmt) — explicit format selection{R}")
-print(f"  Available: ansi, plain, html, latex\n")
-print(m.display("plain"))
+# Module-level function form
+print(f"\n{DIM}# Module-level functions — same result, useful when m is a generic argument{R}")
+print(to_string(m).split('\n')[0], "  …")
 
 # Jupyter auto-display via _repr_html_
 print(f"\n{DIM}# In Jupyter: DSVector renders as HTML table automatically{R}")
 print(f"{DIM}# via _repr_html_() — no extra call needed{R}")
 print(f"  HTML preview (first 3 lines):")
-for line in repr_html(m).split("\n")[:3]:
+for line in m.to_html().split("\n")[:3]:
     print(f"    {line}")
 
 # ---------------------------------------------------------------------------
-# 14. display_all — all representations in one table
+# 14. all_kinds=True — all representations in one table
 # ---------------------------------------------------------------------------
-# display_all(m) shows m, bel, pl, b, q in one table.
+# m.to_string(all_kinds=True) shows m, bel, pl, b, q in one table.
 # Column v (disjunctive weights) is added automatically if m is subnormal
 # (m(∅) > 0, so that b(A) > 0 for all A ⊆ Ω).
 # Column w (conjunctive weights) is added automatically if m is non-dogmatic
 # (m(Ω) > 0, so that q(A) > 0 for all A ⊂ Ω).
 
-section("14. display_all — all representations in one table")
-
-from evtools.display import display_all
+section("14. all_kinds=True — all representations in one table")
 
 # Normal, dogmatic BBA: m(∅)=0, m(Ω)=0 → only m, bel, pl, b, q
 m_dog = DSVector.from_focal(frame, {"a": 0.5, "r": 0.5})
 print(f"{DIM}# Normal dogmatic BBA — columns: m, bel, pl, b, q{R}")
-print(display_all(m_dog, "plain"))
+print(m_dog.to_string(all_kinds=True))
 
 # Non-dogmatic BBA: m(Ω)>0 → w column added
 m_nd = DSVector.from_focal(frame, {"a": 0.3, "r": 0.3, "a,h,r": 0.4})
 print(f"\n{DIM}# Non-dogmatic BBA — w column added (m(Ω)={m_nd[frozenset({'a','h','r'})]:.1f}){R}")
-print(display_all(m_nd, "plain"))
+print(m_nd.to_string(all_kinds=True))
 
 # Subnormal BBA: m(∅)>0 → v column added
 m_sub3 = DSVector.from_focal(frame, {"": 0.1, "a": 0.5, "r": 0.4}, complete=False)
 print(f"\n{DIM}# Subnormal dogmatic BBA — v column added (m(∅)={m_sub3[frozenset()]:.1f}){R}")
-print(display_all(m_sub3, "plain"))
+print(m_sub3.to_string(all_kinds=True))
 
 # Subnormal non-dogmatic: both v and w
 m_full = DSVector.from_focal(frame, {"": 0.1, "a": 0.3, "r": 0.4, "a,h,r": 0.2}, complete=False)
 print(f"\n{DIM}# Subnormal non-dogmatic — both v and w columns{R}")
-print(display_all(m_full, "plain"))
-
-# display_all via method
-print(f"\n{DIM}# Via method: m.display_all('plain'){R}")
-print(m_nd.display_all("plain"))
+print(m_full.to_string(all_kinds=True))
 
 # LaTeX version
 print(f"\n{DIM}# LaTeX output{R}")
-print(display_all(m_nd, "latex"))
+print(m_nd.to_latex(all_kinds=True))
 
 # ---------------------------------------------------------------------------
 # 15. Conditioning and deconditioning

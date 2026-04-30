@@ -40,8 +40,9 @@ evtools.learning
     synthesis: hard_to_soft_labels (Mutmainah 2021, Algorithm 2).
 
 evtools.display
-    Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
-    DSVector.__repr__ and _repr_html_ delegate here.
+    Display functions: to_string, to_ansi, to_html, to_latex (each
+    accepts ``all_kinds=False``). DSVector.__repr__ delegates to
+    to_ansi, _repr_html_ to to_html.
 
 evtools.constants
     Numerical tolerance constants used throughout the library.
@@ -53,7 +54,7 @@ Usage
     from evtools.corrections import discount, contextual_discount
 
     m = DSVector.from_focal(["a", "b"], {"a": 0.3, "b": 0.5})
-    m_disc = discount(m, alpha=0.4)
+    m_disc = discount(m, beta=0.6)
 """
 
 from . import conversions
@@ -65,5 +66,5 @@ from . import learning
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.22.0"
+__version__ = "0.23.0"
 __all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "DSVector", "Kind"]

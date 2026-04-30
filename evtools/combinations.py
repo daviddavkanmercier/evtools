@@ -40,7 +40,7 @@ References
 
 from __future__ import annotations
 
-from .constants import ZERO_MASS, MASS_TOL, VALID_TOL, DISPLAY_TOL
+from .constants import ZERO_MASS
 
 from typing import Literal
 import numpy as np

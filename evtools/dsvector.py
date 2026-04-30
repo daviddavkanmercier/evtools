@@ -33,7 +33,7 @@ v.to_m(), v.to_bel(), v.to_pl(), ...  — convenience shortcuts
 
 from __future__ import annotations
 
-from .constants import ZERO_MASS, MASS_TOL, VALID_TOL, DISPLAY_TOL
+from .constants import ZERO_MASS, MASS_TOL, VALID_TOL
 
 from enum import Enum
 from typing import Iterator
@@ -677,64 +677,33 @@ class DSVector:
     # Display
     # ------------------------------------------------------------------
 
-    def display(self, fmt: str = "ansi") -> str:
-        """
-        Render this DSVector in the requested format.
+    def to_string(self, all_kinds: bool = False) -> str:
+        """Render as plain text (no ANSI codes). See :func:`evtools.display.to_string`."""
+        from .display import to_string
+        return to_string(self, all_kinds=all_kinds)
 
-        Parameters
-        ----------
-        fmt : str
-            Output format. One of:
-            - "ansi"  : colored terminal output (default)
-            - "plain" : plain text, no colors
-            - "html"  : HTML table for Jupyter notebooks
-            - "latex" : LaTeX tabular for academic papers
+    def to_ansi(self, all_kinds: bool = False) -> str:
+        """Render as ANSI-colored terminal output. See :func:`evtools.display.to_ansi`."""
+        from .display import to_ansi
+        return to_ansi(self, all_kinds=all_kinds)
 
-        Returns
-        -------
-        str
-            Formatted string in the requested format.
-        """
-        from .display import repr_ansi, repr_plain, repr_html, repr_latex
-        formats = {
-            "ansi":  repr_ansi,
-            "plain": repr_plain,
-            "html":  repr_html,
-            "latex": repr_latex,
-        }
-        if fmt not in formats:
-            raise ValueError(
-                f"Unknown format '{fmt}'. Choose from: {list(formats.keys())}"
-            )
-        return formats[fmt](self)
+    def to_html(self, all_kinds: bool = False) -> str:
+        """Render as HTML table. See :func:`evtools.display.to_html`."""
+        from .display import to_html
+        return to_html(self, all_kinds=all_kinds)
+
+    def to_latex(self, all_kinds: bool = False) -> str:
+        """Render as a LaTeX tabular environment. See :func:`evtools.display.to_latex`."""
+        from .display import to_latex
+        return to_latex(self, all_kinds=all_kinds)
 
     def __repr__(self) -> str:
         """Return colored ANSI terminal representation."""
-        from .display import repr_ansi
-        return repr_ansi(self)
+        from .display import to_ansi
+        return to_ansi(self)
 
     def _repr_html_(self) -> str:
         """Return HTML representation for Jupyter notebooks."""
-        from .display import repr_html
-        return repr_html(self)
-
-    def display_all(self, fmt: str = "ansi") -> str:
-        """
-        Render all representations in a single table.
-
-        Columns: m, bel, pl, b, q — plus v and w if the BBA is subnormal.
-        Rows: all subsets with at least one non-zero value.
-
-        Parameters
-        ----------
-        fmt : str
-            Output format: "ansi" (default), "plain", "html", or "latex".
-
-        Returns
-        -------
-        str
-            Formatted string in the requested format.
-        """
-        from .display import display_all
-        return display_all(self, fmt)
+        from .display import to_html
+        return to_html(self)
 

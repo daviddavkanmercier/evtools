@@ -16,8 +16,9 @@ ZERO_MASS: float = 1e-15
 # computing the remainder to assign to Ω in from_focal (complete=True).
 MASS_TOL: float = 1e-12
 
-# Tolerance for is_valid checks.
-# Used when verifying that all masses are non-negative and sum to 1.
+# Tolerance for floating-point comparisons of belief-function values.
+# Used in is_valid (verifying all masses are non-negative and sum to 1)
+# and in dominance comparisons (strong/weak dominance in evtools.decision).
 VALID_TOL: float = 1e-10
 
 # Tolerance for display.
