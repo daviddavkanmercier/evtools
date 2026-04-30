@@ -51,6 +51,12 @@ References
   probabilities. IJAR, 45(1), 17-29.
 - Ma, L., Denœux, T. (2021). Partial classification in the belief function
   framework. Knowledge-Based Systems, 214, 106742.
+- Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2019). On learning
+  evidential contextual corrections from soft labels using a measure of
+  discrepancy between contour functions. SUM 2019.
+- Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2021). Improving an
+  evidential source of information using contextual corrections depending
+  on partial decisions. BELIEF 2021, pp. 247-256.
 - Mutmainah, S. (2021). Learning to adjust an evidential source of information
   using partially labeled data and partial decisions. PhD thesis, Université
   d'Artois. Section 1.4.
@@ -171,6 +177,7 @@ def maximin(
     Strat, T.M. (1990). IJAR, 4(5-6), 391-417.
     Ma, L., Denœux, T. (2021). KBS, 214, 106742. Eq. (13).
     Mutmainah, S. (thesis). Eq. (1.21) and (1.23).
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     _check_bba(m, "maximin")
     n = len(m.frame)
@@ -214,6 +221,7 @@ def maximax(
     Strat, T.M. (1990). IJAR, 4(5-6), 391-417.
     Ma, L., Denœux, T. (2021). KBS, 214, 106742. Eq. (14).
     Mutmainah, S. (thesis). Eq. (1.22) and (1.24).
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     _check_bba(m, "maximax")
     n = len(m.frame)
@@ -460,6 +468,7 @@ def strong_dominance(m: DSVector) -> frozenset:
     Troffaes, M.C.M. (2007). IJAR, 45(1), 17-29.
     Ma, L., Denœux, T. (2021). KBS, 214, 106742. Section 3.4.
     Mutmainah, S. (thesis). Eqs. (1.25) and (1.29).
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     _check_bba(m, "strong_dominance")
 
@@ -516,6 +525,7 @@ def weak_dominance(m: DSVector) -> frozenset:
     Walley, P. (1991). Statistical reasoning with imprecise probabilities.
     Ma, L., Denœux, T. (2021). KBS, 214, 106742. Section 3.4.
     Mutmainah, S. (thesis). Eqs. (1.26) and (1.30).
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     _check_bba(m, "weak_dominance")
 

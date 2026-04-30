@@ -305,3 +305,131 @@ class TestHardToSoftLabels:
         preds = [DSVector.from_focal(FRAME, {y: 1.0}) for y in hard]
         loss = pl_loss(preds, soft)
         assert loss >= 0.0
+
+
+# ---------------------------------------------------------------------------
+# fit_per_group / apply_per_group  (Algorithm 1 of Mutmainah 2021)
+# ---------------------------------------------------------------------------
+
+from evtools.decision import strong_dominance, weak_dominance
+from evtools.learning import (
+    fit_per_group, apply_per_group, GroupCorrection, GroupedCorrectionModel,
+)
+from evtools.metrics import pl_loss
+
+
+# Pichon 2016 Sensor 1 — used as a small fixture.
+SENSOR1 = [
+    DSVector.from_focal(["a", "h", "r"], {"r": 0.5, "h,r": 0.3, "a,h,r": 0.2}),
+    DSVector.from_focal(["a", "h", "r"], {"h": 0.5, "r": 0.2, "a,h,r": 0.3}),
+    DSVector.from_focal(["a", "h", "r"], {"h": 0.4, "a,r": 0.6}),
+    DSVector.from_focal(["a", "h", "r"], {"a,r": 0.6, "h,r": 0.4}),
+]
+TRUTH1 = ["a", "h", "a", "r"]
+
+
+class TestFitPerGroup:
+
+    def test_returns_grouped_correction_model(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        assert isinstance(m, GroupedCorrectionModel)
+        assert isinstance(m.groups, dict)
+        assert isinstance(m.fallback, GroupCorrection)
+        assert m.dominance is strong_dominance
+
+    def test_groups_are_keyed_by_partial_decisions(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        # Every key must be a frozenset of atom names from the frame
+        for d in m.groups:
+            assert isinstance(d, frozenset)
+            assert d <= {"a", "h", "r"}
+
+    def test_each_group_correction_has_valid_kind(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        for gc in m.groups.values():
+            assert gc.kind in ("cd", "cr", "cn")
+            assert gc.loss >= 0
+
+    def test_per_group_loss_lower_than_baseline(self):
+        # Per-group correction should reduce pl_loss compared to no correction
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        corrected = apply_per_group(m, SENSOR1)
+        assert pl_loss(corrected, TRUTH1) < pl_loss(SENSOR1, TRUTH1)
+
+    def test_per_group_beats_or_matches_single_correction(self):
+        # Per-group is at least as good as a single global CD/CR/CN, since it
+        # fits each group independently with the optimal local correction.
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        corrected = apply_per_group(m, SENSOR1)
+        per_group_loss = pl_loss(corrected, TRUTH1)
+        # The fallback corresponds to the best single global correction.
+        assert per_group_loss <= m.fallback.loss + 1e-9
+
+    def test_lengths_mismatch_raises(self):
+        with pytest.raises(ValueError, match="length"):
+            fit_per_group(SENSOR1, TRUTH1[:-1], dominance=strong_dominance)
+
+    def test_empty_training_set_raises(self):
+        with pytest.raises(ValueError, match="empty"):
+            fit_per_group([], [], dominance=strong_dominance)
+
+    def test_works_with_weak_dominance(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=weak_dominance)
+        assert m.dominance is weak_dominance
+        # All keys are weak-dominance frozensets (possibly different from SD)
+        assert all(isinstance(d, frozenset) for d in m.groups)
+
+    def test_soft_labels_fit_runs_and_reduces_loss(self):
+        # Section 5.3 case: same API with DSVector labels
+        soft = [DSVector.from_focal(["a", "h", "r"], {y: 1.0}) for y in TRUTH1]
+        m = fit_per_group(SENSOR1, soft, dominance=strong_dominance)
+        corrected = apply_per_group(m, SENSOR1)
+        assert pl_loss(corrected, soft) < pl_loss(SENSOR1, soft)
+
+    def test_soft_categorical_labels_match_hard(self):
+        # Categorical soft labels should produce the same model as hard labels.
+        soft = [DSVector.from_focal(["a", "h", "r"], {y: 1.0}) for y in TRUTH1]
+        m_hard = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        m_soft = fit_per_group(SENSOR1, soft,   dominance=strong_dominance)
+        # Same groups, same kinds, same betas
+        assert set(m_hard.groups) == set(m_soft.groups)
+        for d in m_hard.groups:
+            gh, gs = m_hard.groups[d], m_soft.groups[d]
+            assert gh.kind == gs.kind
+            assert gh.betas.keys() == gs.betas.keys()
+            for k in gh.betas:
+                assert gh.betas[k] == pytest.approx(gs.betas[k])
+
+
+class TestApplyPerGroup:
+
+    def test_returns_list_of_dsvector_same_length(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        out = apply_per_group(m, SENSOR1)
+        assert isinstance(out, list)
+        assert len(out) == len(SENSOR1)
+        assert all(isinstance(x, DSVector) for x in out)
+
+    def test_corrected_outputs_keep_frame(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        out = apply_per_group(m, SENSOR1)
+        for o in out:
+            assert list(o.frame) == ["a", "h", "r"]
+
+    def test_unseen_partial_decision_uses_fallback(self):
+        # Train on a single instance whose partial decision is {a,h,r}.
+        # Then test on an instance whose partial decision is {a} (different) —
+        # apply_per_group should fall back without raising.
+        train_pred = [DSVector.from_focal(["a", "h", "r"], {})]   # vacuous → SD = {a,h,r}
+        train_lbl  = ["a"]
+        m = fit_per_group(train_pred, train_lbl, dominance=strong_dominance)
+
+        # A categorical BBA on {a} → SD = {a} (unseen group)
+        test_pred = DSVector.from_focal(["a", "h", "r"], {"a": 1.0})
+        out = apply_per_group(m, [test_pred])
+        assert len(out) == 1
+        # The fallback was applied (no exception raised on unseen group)
+
+    def test_apply_on_empty_input(self):
+        m = fit_per_group(SENSOR1, TRUTH1, dominance=strong_dominance)
+        assert apply_per_group(m, []) == []

@@ -34,6 +34,9 @@ References
 - Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2019). On learning
   evidential contextual corrections from soft labels using a measure of
   discrepancy between contour functions. SUM 2019.
+- Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2021). Improving an
+  evidential source of information using contextual corrections depending
+  on partial decisions. BELIEF 2021, pp. 247-256.
 - Mutmainah, S. (2021). Learning to adjust an evidential source of information
   using partially labeled data and partial decisions. PhD thesis, Université
   d'Artois. Section 2.5.
@@ -41,7 +44,7 @@ References
 
 from __future__ import annotations
 
-from typing import Sequence, Union
+from typing import Callable, Literal, NamedTuple, Sequence, Union
 
 import numpy as np
 
@@ -325,6 +328,7 @@ def hard_to_soft_labels(
     Mutmainah, S. (2021). Learning to adjust an evidential source of
     information using partially labeled data and partial decisions. PhD
     thesis, Université d'Artois. Algorithm 2.
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     if rng is None:
         rng = np.random.default_rng()
@@ -365,3 +369,210 @@ def hard_to_soft_labels(
             )
 
     return soft_labels
+
+
+# ---------------------------------------------------------------------------
+# Per-group learning of contextual corrections
+# (Algorithm 1 of Mutmainah 2021 — Chapter 4 with hard labels, Section 5.3
+#  with soft labels; both share the same code path thanks to the polymorphic
+#  pl_loss / fit_cd / fit_cr / fit_cn used internally.)
+# ---------------------------------------------------------------------------
+
+CorrectionKind = Literal["cd", "cr", "cn"]
+
+
+class GroupCorrection(NamedTuple):
+    """The correction selected for one partial-decision group.
+
+    Attributes
+    ----------
+    kind : {"cd", "cr", "cn"}
+        Which correction (contextual discount / reinforce / negate) attained
+        the lowest pl_loss on the instances of this group.
+    betas : dict[frozenset, float]
+        The β parameters of the chosen correction, in the format expected by
+        the corresponding ``evtools.corrections`` function.
+    loss : float
+        The pl_loss attained on the instances of this group after applying
+        the chosen correction.
+    """
+    kind: CorrectionKind
+    betas: dict
+    loss: float
+
+
+class GroupedCorrectionModel(NamedTuple):
+    """A learned per-group correction model.
+
+    Attributes
+    ----------
+    groups : dict[frozenset, GroupCorrection]
+        Mapping from a partial decision (subset of Ω) to the chosen correction.
+    fallback : GroupCorrection
+        Correction fitted on the whole training set, used at predict time
+        when an instance's partial decision was not seen during training.
+    dominance : callable
+        The partial-decision function used at training and prediction time
+        (typically ``evtools.decision.strong_dominance`` or
+        ``evtools.decision.weak_dominance``).
+    """
+    groups: dict
+    fallback: GroupCorrection
+    dominance: Callable[[DSVector], frozenset]
+
+
+def _fit_best_correction(
+    predictions: Sequence[DSVector],
+    labels: Sequence[Union[str, DSVector]],
+) -> GroupCorrection:
+    """Fit CD, CR, CN; return the one with lowest pl_loss."""
+    from .corrections import contextual_discount, contextual_reinforce, contextual_negate
+    from .metrics import pl_loss
+
+    candidates = (
+        ("cd", fit_cd, contextual_discount),
+        ("cr", fit_cr, contextual_reinforce),
+        ("cn", fit_cn, contextual_negate),
+    )
+    best: GroupCorrection | None = None
+    for kind, fit_fn, apply_fn in candidates:
+        betas = fit_fn(predictions, labels)
+        corrected = [apply_fn(p, betas) for p in predictions]
+        loss = pl_loss(corrected, labels)
+        if best is None or loss < best.loss:
+            best = GroupCorrection(kind=kind, betas=betas, loss=loss)
+    assert best is not None
+    return best
+
+
+def fit_per_group(
+    predictions: Sequence[DSVector],
+    labels: Sequence[Union[str, DSVector]],
+    *,
+    dominance: Callable[[DSVector], frozenset],
+) -> GroupedCorrectionModel:
+    """
+    Per-group learning of contextual corrections.
+
+    Implements Algorithm 1 of Mutmainah (2021), Chapter 4. The same algorithm
+    extends naturally to soft labels (Section 5.3): pass DSVector labels and
+    the underlying optimization minimizes Ẽ_pl instead of E_pl.
+
+    Procedure:
+
+    1. Group training instances by their partial decision (computed via
+       *dominance*).
+    2. For each group, fit CD, CR, CN parameters and keep the one attaining
+       the lowest pl_loss on that group.
+    3. Also fit a fallback correction on the full training set, used when
+       an unseen partial decision occurs at predict time.
+
+    Parameters
+    ----------
+    predictions : sequence of DSVector
+        Source BBA outputs on the training set (must all share the same frame).
+    labels : sequence of str or DSVector
+        Ground truth — hard labels (str) or soft labels (DSVector). Hard
+        and soft can be mixed.
+    dominance : callable
+        A function ``DSVector → frozenset`` returning the partial decision
+        used to define groups. Typically :func:`evtools.decision.strong_dominance`
+        or :func:`evtools.decision.weak_dominance`.
+
+    Returns
+    -------
+    GroupedCorrectionModel
+        The fitted model. Pass it to :func:`apply_per_group` to correct new
+        instances.
+
+    Raises
+    ------
+    ValueError
+        If ``predictions`` and ``labels`` have different lengths.
+
+    References
+    ----------
+    Mutmainah, S. (2021). Learning to adjust an evidential source of
+    information using partially labeled data and partial decisions. PhD
+    thesis, Université d'Artois. Algorithm 1 (Section 4.2) and Section 5.3.
+    Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2021). Improving an
+    evidential source of information using contextual corrections depending
+    on partial decisions. BELIEF 2021, pp. 247-256 (hard-label version).
+    Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2019). On learning
+    evidential contextual corrections from soft labels using a measure of
+    discrepancy between contour functions. SUM 2019 (soft-label extension).
+    """
+    preds = list(predictions)
+    lbls  = list(labels)
+    if len(preds) != len(lbls):
+        raise ValueError(
+            f"fit_per_group: predictions and labels have different lengths "
+            f"({len(preds)} vs {len(lbls)})."
+        )
+    if not preds:
+        raise ValueError("fit_per_group: empty training set.")
+
+    # Step 1: partition by partial decision.
+    grouped_preds: dict[frozenset, list[DSVector]] = {}
+    grouped_lbls:  dict[frozenset, list] = {}
+    for p, lbl in zip(preds, lbls):
+        d = dominance(p)
+        grouped_preds.setdefault(d, []).append(p)
+        grouped_lbls.setdefault(d, []).append(lbl)
+
+    # Step 2: fit best correction for each group.
+    groups: dict[frozenset, GroupCorrection] = {
+        d: _fit_best_correction(grouped_preds[d], grouped_lbls[d])
+        for d in grouped_preds
+    }
+
+    # Step 3: fallback (best correction on the whole training set).
+    fallback = _fit_best_correction(preds, lbls)
+
+    return GroupedCorrectionModel(
+        groups=groups, fallback=fallback, dominance=dominance,
+    )
+
+
+def apply_per_group(
+    model: GroupedCorrectionModel,
+    predictions: Sequence[DSVector],
+) -> list[DSVector]:
+    """
+    Apply a per-group correction model to new BBA outputs.
+
+    For each prediction, the partial decision is computed using the model's
+    ``dominance`` function and looked up in ``model.groups``. If the partial
+    decision is in the model, the corresponding correction is applied;
+    otherwise ``model.fallback`` is used.
+
+    Parameters
+    ----------
+    model : GroupedCorrectionModel
+        Result of :func:`fit_per_group`.
+    predictions : sequence of DSVector
+        New BBAs to correct.
+
+    Returns
+    -------
+    list[DSVector]
+        Corrected BBAs, one per input.
+
+    References
+    ----------
+    Mutmainah, S. (2021). Algorithm 1 (predict step), Section 4.2.
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
+    """
+    from .corrections import contextual_discount, contextual_reinforce, contextual_negate
+
+    apply_map = {
+        "cd": contextual_discount,
+        "cr": contextual_reinforce,
+        "cn": contextual_negate,
+    }
+    out: list[DSVector] = []
+    for p in predictions:
+        d = model.dominance(p)
+        gc = model.groups.get(d, model.fallback)
+        out.append(apply_map[gc.kind](p, gc.betas))
+    return out

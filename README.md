@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory / Transferable Belief Model. Version 0.21.0.
+in the Dempster-Shafer theory / Transferable Belief Model. Version 0.22.0.
 
 ## Modules
 
@@ -13,7 +13,7 @@ in the Dempster-Shafer theory / Transferable Belief Model. Version 0.21.0.
 | `evtools.corrections` | Correction mechanisms: discounting, reinforcement, negating |
 | `evtools.decision` | Decision criteria: maximin, maximax, pignistic, plp, hurwicz, dominance |
 | `evtools.metrics` | Performance metrics: discounted_accuracy, u65, u80, pl_loss + aggregators |
-| `evtools.learning` | Learning of contextual correction parameters (fit_cd, fit_cr, fit_cn) and soft-label generation (hard_to_soft_labels) |
+| `evtools.learning` | Learning of contextual corrections (fit_cd, fit_cr, fit_cn), per-group learning (fit_per_group, apply_per_group), and soft-label generation (hard_to_soft_labels) |
 | `evtools.display` | Display formats: ANSI terminal, plain text, HTML, LaTeX |
 | `evtools.constants` | Numerical tolerance constants |
 
@@ -367,6 +367,39 @@ For each instance `i`, the algorithm draws `p_i ~ Beta(μ, v)` and
 with `m({ω_{k_i}}) = 1 − p_i` and `m(Ω) = p_i` for a uniformly random
 class `k_i`, otherwise the hard label is preserved.
 
+### Per-group learning of contextual corrections
+
+`fit_per_group` implements **Algorithm 1 of Mutmainah (2021)** — both the
+hard-label version (Chapter 4) and the soft-label extension (Section 5.3)
+share the same code path thanks to the polymorphic `pl_loss` and `fit_*`
+underneath. Source outputs are partitioned by their partial decision
+(strong or weak dominance), and the best of CD/CR/CN is fitted on each
+group; a fallback correction is also learnt on the whole training set
+for unseen partial decisions at predict time.
+
+```python
+from evtools.learning import fit_per_group, apply_per_group
+from evtools.decision  import strong_dominance, weak_dominance
+
+# Train: predictions and labels from a labeled set, dominance criterion of choice
+model = fit_per_group(
+    predictions_train,
+    labels_train,                  # hard (str), soft (DSVector), or mixed
+    dominance=strong_dominance,    # or weak_dominance
+)
+
+# Inspect what was learnt
+for d, gc in model.groups.items():
+    print(d, gc.kind, gc.loss)     # which correction fits best on each group
+print("fallback:", model.fallback.kind, model.fallback.loss)
+
+# Apply on new BBA outputs
+predictions_test_corrected = apply_per_group(model, predictions_test)
+```
+
+The model is a small `NamedTuple` (`GroupedCorrectionModel`) with three
+fields: `groups`, `fallback`, `dominance`.
+
 ### Hard-classification metrics: use scikit-learn
 
 For ROC, AUC, accuracy, precision/recall, etc. on hard predictions, extract a
@@ -464,6 +497,8 @@ pytest tests/
 - M. C. M. Troffaes. *Decision making under uncertainty using imprecise probabilities*, International Journal of Approximate Reasoning, Vol. 45, Issue 1, pp 17-29, 2007.
 - L. Ma, T. Denœux. *Partial classification in the belief function framework*, Knowledge-Based Systems, Vol. 214, 106742, 2021.
 - M. Zaffalon, G. Corani, D. Mauá. *Evaluating credal classifiers by utility-discounted predictive accuracy*, International Journal of Approximate Reasoning, Vol. 53, Issue 8, pp 1282-1301, 2012.
+- S. Mutmainah, S. Hachour, F. Pichon, D. Mercier. *On learning evidential contextual corrections from soft labels using a measure of discrepancy between contour functions*, 13th International Conference on Scalable Uncertainty Management, SUM 2019, N. Ben Amor, B. Quost and M. Theobald (Eds.), Springer, Volume 11940 of Lecture Notes in Computer Science, pp 405–411, Compiègne, France, December 16-18, 2019.
+- S. Mutmainah, S. Hachour, F. Pichon, D. Mercier. *Improving an Evidential Source of Information Using Contextual Corrections Depending on Partial Decisions*, 6th International Conference on Belief Functions, BELIEF 2021, T. Denœux, É. Lefèvre, Z. Liu and F. Pichon (Eds.), pp 247-256, Shanghai, China, October 15-19, 2021.
 - S. Mutmainah. *Learning to adjust an evidential source of information using partially labeled data and partial decisions*, PhD thesis, Université d'Artois, 2021.
 
 ## License

@@ -36,6 +36,9 @@ References
 - Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2019). On learning
   evidential contextual corrections from soft labels using a measure of
   discrepancy between contour functions. SUM 2019.
+- Mutmainah, S., Hachour, S., Pichon, F., Mercier, D. (2021). Improving an
+  evidential source of information using contextual corrections depending
+  on partial decisions. BELIEF 2021, pp. 247-256.
 - Mutmainah, S. (2021). Learning to adjust an evidential source of information
   using partially labeled data and partial decisions. PhD thesis, Université
   d'Artois. Sections 2.5, 3.4, 5.2.
@@ -81,6 +84,7 @@ def discounted_accuracy(d: frozenset, omega: str) -> float:
     ----------
     Zaffalon, M., Corani, G., Mauá, D. (2012). IJAR, 53(8), 1282-1301.
     Mutmainah, S. (2021). PhD thesis. Section 3.4.
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     if not d or omega not in d:
         return 0.0
@@ -107,6 +111,7 @@ def utility_score(
     ----------
     Zaffalon, M., Corani, G., Mauá, D. (2012). IJAR, 53(8), 1282-1301.
     Mutmainah, S. (2021). PhD thesis. Section 3.4, Eqs. (3.4)-(3.5).
+    See also: Mutmainah et al. SUM (2019), BELIEF (2021).
     """
     x = discounted_accuracy(d, omega)
     return a * x - b * x * x
@@ -257,6 +262,7 @@ def pl_loss(
     ----------
     Hard labels — Mercier et al. (2008), Eq. (2.24) of Mutmainah (2021) thesis.
     Soft labels — Mutmainah et al. (2019), SUM, Eq. (8); thesis Eq. (5.6).
+    Used as a performance measure in Mutmainah et al. (2021), BELIEF.
     """
     preds = list(predictions)
     lbls  = list(labels)

@@ -27,6 +27,7 @@ Sections
 16. Decision criteria     — maximin, maximax, pignistic, plp, hurwicz, dominance
 17. Performance metrics   — u65, u80, pl_loss; sklearn for ROC/AUC
 18. Learning corrections  — fit_cd, fit_cr, fit_cn (Pichon 2016 closed-form)
+19. Per-group learning    — fit_per_group, apply_per_group (Mutmainah 2021, Alg. 1)
 
 References
 ----------
@@ -48,6 +49,14 @@ References
   Knowledge-Based Systems, 214, 106742, 2021.
 - M. Zaffalon, G. Corani, D. Mauá. Evaluating credal classifiers by
   utility-discounted predictive accuracy. IJAR, 53(8), 1282-1301, 2012.
+- S. Mutmainah, S. Hachour, F. Pichon, D. Mercier. On learning evidential
+  contextual corrections from soft labels using a measure of discrepancy
+  between contour functions. SUM 2019, LNCS 11940, pp 405-411.
+- S. Mutmainah, S. Hachour, F. Pichon, D. Mercier. Improving an evidential
+  source of information using contextual corrections depending on partial
+  decisions. BELIEF 2021, pp 247-256.
+- S. Mutmainah. Learning to adjust an evidential source of information using
+  partially labeled data and partial decisions. PhD thesis, Univ. d'Artois, 2021.
 """
 
 import numpy as np
@@ -752,3 +761,47 @@ for hard, sft in zip(truth1, synthetic_soft):
 betas_synth = fit_cd(sensor1, synthetic_soft)
 print(f"\n  β learned from these soft labels:")
 print(f"    {tuple(round(betas_synth[frozenset({a})], 3) for a in frame)}")
+
+
+# ---------------------------------------------------------------------------
+# 20. Per-group learning of contextual corrections (Mutmainah 2021, Alg. 1)
+# ---------------------------------------------------------------------------
+# fit_per_group partitions the training set by partial decision (strong or
+# weak dominance) and fits the best of CD/CR/CN on each group. apply_per_group
+# uses the chosen correction at predict time, falling back to a global model
+# for unseen partial decisions. Soft labels (DSVector) work transparently:
+# Chapter 4 (hard) and Section 5.3 (soft) of the thesis share the same API.
+
+section("20. Per-group learning  (fit_per_group + apply_per_group)")
+
+from evtools.learning import fit_per_group, apply_per_group
+from evtools.decision import strong_dominance, weak_dominance
+
+print(f"{DIM}# Reusing Pichon 2016 Sensor 1 dataset as the training set{R}")
+model = fit_per_group(sensor1, truth1, dominance=strong_dominance)
+print(f"  number of groups: {len(model.groups)}")
+for d, gc in model.groups.items():
+    label = "{" + ", ".join(sorted(d)) + "}" if d else "∅"
+    print(f"    group {label:<12} → kind={gc.kind!r:<5} loss={gc.loss:.4f}")
+print(f"  fallback        → kind={model.fallback.kind!r:<5} loss={model.fallback.loss:.4f}")
+
+print(f"\n{DIM}# Compare per-group correction vs no correction vs single-global{R}")
+loss_baseline = pl_loss(sensor1, truth1)
+loss_global   = model.fallback.loss
+corrected     = apply_per_group(model, sensor1)
+loss_per_group = pl_loss(corrected, truth1)
+print(f"  pl_loss baseline    : {loss_baseline:.4f}")
+print(f"  pl_loss global CR   : {loss_global:.4f}  {DIM}(best single correction){R}")
+print(f"  pl_loss per-group   : {loss_per_group:.4f}  {DIM}← best{R}")
+
+print(f"\n{DIM}# Same API works with weak dominance{R}")
+model_wd = fit_per_group(sensor1, truth1, dominance=weak_dominance)
+corrected_wd = apply_per_group(model_wd, sensor1)
+print(f"  pl_loss per-group (weak dom) : {pl_loss(corrected_wd, truth1):.4f}")
+
+print(f"\n{DIM}# Same API works with soft labels (Section 5.3 of the thesis){R}")
+rng = np.random.default_rng(seed=2026)
+soft_train = hard_to_soft_labels(truth1, frame, rng=rng)
+model_soft = fit_per_group(sensor1, soft_train, dominance=strong_dominance)
+corrected_soft = apply_per_group(model_soft, sensor1)
+print(f"  Ẽ_pl per-group (soft labels) : {pl_loss(corrected_soft, soft_train):.4f}")

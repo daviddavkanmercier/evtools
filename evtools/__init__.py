@@ -32,10 +32,12 @@ evtools.metrics
     plus mean_* aggregators.
 
 evtools.learning
-    Learning of contextual correction parameters from labeled data:
-    fit_cd, fit_cr, fit_cn — closed-form least-squares minimizers of
-    pl_loss (Pichon et al. 2016, Propositions 12, 14, 16). Hard or
-    soft labels.
+    Learning of contextual correction parameters from labeled data.
+    Per-correction closed-form fits: fit_cd, fit_cr, fit_cn (Pichon
+    et al. 2016, Propositions 12, 14, 16). Per-group learning:
+    fit_per_group / apply_per_group (Mutmainah 2021, Algorithm 1 —
+    Chapter 4 hard labels and Section 5.3 soft labels). Soft-label
+    synthesis: hard_to_soft_labels (Mutmainah 2021, Algorithm 2).
 
 evtools.display
     Display functions: repr_ansi, repr_plain, repr_html, repr_latex.
@@ -63,5 +65,5 @@ from . import learning
 from . import display
 from .dsvector import DSVector, Kind
 
-__version__ = "0.21.0"
+__version__ = "0.22.0"
 __all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "DSVector", "Kind"]
