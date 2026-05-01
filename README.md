@@ -1,7 +1,7 @@
 # evtools
 
 **Evidence Theory Tools** — a Python library for working with belief functions
-in the Dempster-Shafer theory. Version 0.23.1.
+in the Dempster-Shafer theory. Version 0.24.0.
 
 ## Modules
 

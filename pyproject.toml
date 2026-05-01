@@ -4,12 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "evtools-dst"
-version = "0.23.1"
+version = "0.24.0"
 description = "Evidence Theory Tools — a Python library for working with belief functions in the Dempster-Shafer theory"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "numpy>=1.24",
+    "scipy>=1.10",
 ]
 keywords = [
     "belief functions",

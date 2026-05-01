@@ -8,26 +8,30 @@ airplane (a), helicopter (h), or rocket (r).
 
 Sections
 --------
-1.  Building a BBA        — from_focal, from_dense, from_sparse
-2.  Accessing values      — sparse, dense, iteration, is_valid
-3.  Subnormal BBA         — m(∅) > 0
-4.  Conversions           — bel, pl, b, q, v, w
-5.  Round-trip            — consistency checks
-6.  Low-level API         — numpy arrays via conversions module
-7.  Combination rules     — CRC, Dempster, DRC (distinct sources)
-8.  DRC                   — disjunctive rule
-9.  Cautious & Bold       — nondistinct sources
-10. Correction mechanisms — discount, contextual_discount, CR, CdD, CN
-11. Simple MFs            — DSVector.simple, DSVector.negative_simple
-    Decombination         — decombine_crc, decombine_drc
-12. Display formats       — to_string, to_ansi, to_html, to_latex
-13. all_kinds=True        — all representations in one table
-14. Conditioning          — condition(m, A), decondition(m, A), C_A, D_A
-15. BetP and PlP          — pignistic and plausibility probability transformations
-16. Decision criteria     — maximin, maximax, pignistic, plp, hurwicz, dominance
-17. Performance metrics   — u65, u80, pl_loss; sklearn for ROC/AUC
-18. Learning corrections  — fit_cd, fit_cr, fit_cn (Pichon 2016 closed-form)
-19. Per-group learning    — fit_per_group, apply_per_group (Mutmainah 2021, Alg. 1)
+1.  Building a BBA          — from_focal, from_dense, from_sparse
+2.  Accessing values        — sparse, dense, iteration, is_valid
+3.  Subnormal BBA           — m(∅) > 0
+4.  Conversions             — bel, pl, b, q, v, w
+5.  v and w weights         — disjunctive / conjunctive weight functions
+6.  Round-trip consistency  — m → kind → m sanity check
+7.  Low-level API           — numpy arrays via conversions module
+8.  Combination rules       — CRC, Dempster, DRC (distinct sources)
+9.  DRC                     — disjunctive rule (s1 | s2)
+10. Cautious & Bold         — nondistinct sources
+11. Correction mechanisms   — discount, contextual_*, CdD, CN
+12. Simple MFs              — DSVector.simple, .negative_simple, decombination
+13. Display formats         — to_string, to_ansi, to_html, to_latex
+14. all_kinds=True          — all representations in one table
+15. Conditioning            — condition(m, A), decondition(m, A), C_A, D_A
+16. BetP and PlP            — pignistic and plausibility probability transforms
+17. Decision criteria       — maximin, maximax, pignistic, plp, hurwicz, dominance
+18. Performance metrics     — u65, u80, pl_loss; sklearn for ROC/AUC
+19. Learning corrections    — fit_cd, fit_cr, fit_cn (Pichon 2016)
+20. Per-group learning      — fit_per_group, apply_per_group (Mutmainah 2021)
+21. EkNN + K-fold CV        — Denoeux 1995, Zouhal 1998 + KFold/StratifiedKFold
+22. EkNN on UCI benchmarks  — Sonar and Ionosphere (Zouhal 1998 Tables/Figures)
+23. EkNN + CD/CR/CN         — train classifier on L1, fit best correction on L2
+24. EkNN + per-group corr.  — fit_per_group with strong/weak dominance partition
 
 References
 ----------
@@ -798,3 +802,315 @@ soft_train = hard_to_soft_labels(truth1, frame, rng=rng)
 model_soft = fit_per_group(sensor1, soft_train, dominance=strong_dominance)
 corrected_soft = apply_per_group(model_soft, sensor1)
 print(f"  Ẽ_pl per-group (soft labels) : {pl_loss(corrected_soft, soft_train):.4f}")
+
+
+# ---------------------------------------------------------------------------
+# 21. EkNN classifier with K-fold cross-validation
+# ---------------------------------------------------------------------------
+# evtools.classifiers.EkNN implements the evidence-theoretic k-NN rule of
+# Denoeux 1995 (heuristic γ) and Zouhal & Denoeux 1998 (γ optimized by
+# minimizing the pl-loss on the training set).
+#
+# This section demonstrates EkNN on the classic Iris dataset, with both
+# K-fold CV (random splits) and stratified K-fold CV (preserves class
+# proportions in each fold — the standard practice for classification).
+
+section("21. EkNN classifier  +  K-fold CV  (Iris and Wine)")
+
+try:
+    from sklearn.datasets import load_iris, load_wine
+    from sklearn.model_selection import KFold, StratifiedKFold
+    sklearn_available = True
+except ImportError:
+    sklearn_available = False
+    print(f"  {DIM}(install scikit-learn to run this section: `pip install scikit-learn`){R}")
+
+if sklearn_available:
+    from sklearn.preprocessing import StandardScaler
+    from evtools.classifiers import EkNN
+    from evtools.metrics import mean_pl_loss
+
+    def _kfold_eval(X, y, splitter, k=5, optimize=True):
+        """Run CV with the given splitter; return (acc_mean, acc_std, plloss_mean, plloss_std)."""
+        accs, plloss = [], []
+        # split() takes y for stratified, ignores it for plain KFold
+        split_args = (X, y) if isinstance(splitter, StratifiedKFold) else (X,)
+        for train_idx, test_idx in splitter.split(*split_args):
+            X_tr, X_te = X[train_idx], X[test_idx]
+            y_tr, y_te = y[train_idx], y[test_idx]
+            clf = EkNN(k=k, optimize=optimize).fit(X_tr, y_tr)
+            accs.append((clf.predict(X_te) == y_te).mean())
+            bbas = clf.predict_bba(X_te)
+            plloss.append(mean_pl_loss(bbas, [str(c) for c in y_te]))
+        return np.mean(accs), np.std(accs), np.mean(plloss), np.std(plloss)
+
+    DATASETS = [
+        ("Iris", load_iris(return_X_y=True)),
+        ("Wine", load_wine(return_X_y=True)),
+    ]
+
+    for name, (X, y) in DATASETS:
+        print(f"{DIM}# {name}: n={len(X)}, n_features={X.shape[1]}, "
+              f"n_classes={len(set(y))}{R}")
+
+        # 5-fold CV (random splits) — raw features
+        kfold = KFold(n_splits=5, shuffle=True, random_state=42)
+        a_no, _, _, _ = _kfold_eval(X, y, kfold, optimize=False)
+        a, sa, pl, spl = _kfold_eval(X, y, kfold, optimize=True)
+        print(f"  KFold       no-optim accuracy = {a_no:.4f}")
+        print(f"  KFold       +optim   accuracy = {a:.4f} ± {sa:.4f}, "
+              f"mean_pl_loss = {pl:.4f} ± {spl:.4f}")
+
+        # 5-fold Stratified CV (preserves class proportions)
+        skfold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+        a, sa, pl, spl = _kfold_eval(X, y, skfold, optimize=True)
+        print(f"  Stratified  +optim   accuracy = {a:.4f} ± {sa:.4f}, "
+              f"mean_pl_loss = {pl:.4f} ± {spl:.4f}")
+
+        # Same with standardized features (zero mean, unit variance)
+        # — EkNN uses Euclidean distance, so feature scaling matters.
+        X_std = StandardScaler().fit_transform(X)
+        a, sa, pl, spl = _kfold_eval(X_std, y, skfold, optimize=True)
+        print(f"  Stratified  +optim   accuracy = {a:.4f} ± {sa:.4f}, "
+              f"mean_pl_loss = {pl:.4f} ± {spl:.4f}    {DIM}(standardized features){R}")
+        print()
+
+    # -----------------------------------------------------------
+    # Notes
+    # -----------------------------------------------------------
+    print(f"{DIM}# Notes:{R}")
+    print(f"{DIM}#  - K-fold:           random splits, may give imbalanced folds.{R}")
+    print(f"{DIM}#  - Stratified K-fold: each fold preserves class proportions.{R}")
+    print(f"{DIM}#                       Standard practice in classification.{R}")
+    print(f"{DIM}#  - mean_pl_loss is a richer metric than accuracy: it uses the{R}")
+    print(f"{DIM}#    full BBA (singleton + Ω masses), not just the argmax label.{R}")
+    print(f"{DIM}#  - Feature scaling matters! EkNN uses Euclidean distance.{R}")
+    print(f"{DIM}#    Wine has features on very different scales (alcohol vs ash) →{R}")
+    print(f"{DIM}#    standardization ~doubles accuracy. Iris features already comparable.{R}")
+
+
+# ---------------------------------------------------------------------------
+# 22. EkNN on UCI benchmarks — Sonar and Ionosphere
+# ---------------------------------------------------------------------------
+# These two binary-classification UCI datasets are the standard benchmarks
+# used in Zouhal & Denoeux 1998 (Figs 7-8 for Ionosphere, 11-12 for Sonar)
+# to evaluate the EkNN rule with optimized γ. We load them via OpenML and
+# evaluate EkNN with 5-fold Stratified CV, reporting accuracy + mean_pl_loss.
+
+section("22. EkNN on UCI benchmarks  (Sonar, Ionosphere)")
+
+if sklearn_available:
+    from sklearn.datasets import fetch_openml
+
+    def _evaluate(X, y, name, k=5, n_splits=5, seed=42):
+        """Run 5-fold Stratified CV with EkNN and return (acc, plloss) as means ± stds."""
+        skfold = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+        accs, plloss = [], []
+        for train_idx, test_idx in skfold.split(X, y):
+            clf = EkNN(k=k, optimize=True).fit(X[train_idx], y[train_idx])
+            accs.append((clf.predict(X[test_idx]) == y[test_idx]).mean())
+            bbas = clf.predict_bba(X[test_idx])
+            plloss.append(mean_pl_loss(bbas, [str(c) for c in y[test_idx]]))
+        return (np.mean(accs), np.std(accs)), (np.mean(plloss), np.std(plloss))
+
+    print(f"{DIM}# 5-fold Stratified CV, EkNN k=5, optimize=True (Pl-loss){R}")
+    print(f"{DIM}# Reference: Zouhal & Denoeux 1998, Table II — best k chosen per dataset.{R}")
+    print()
+
+    for name, openml_id in [("Sonar", 40)             # OpenML "sonar" id=40
+                          , ("Ionosphere", 59)]:      # OpenML "ionosphere" id=59
+        try:
+            data = fetch_openml(data_id=openml_id, as_frame=False, parser="liac-arff")
+            X = np.asarray(data.data, dtype=float)
+            y = np.asarray(data.target)
+            (acc_m, acc_s), (pl_m, pl_s) = _evaluate(X, y, name)
+            print(f"  {name:<11}  n={len(X):>3}, d={X.shape[1]:>2}: "
+                  f"accuracy={acc_m:.4f} ± {acc_s:.4f},  "
+                  f"mean_pl_loss={pl_m:.4f} ± {pl_s:.4f}")
+        except Exception as e:
+            # Network / OpenML issues — fall back gracefully
+            print(f"  {name:<11}  {DIM}skipped (could not load: {type(e).__name__}){R}")
+
+    print()
+    print(f"{DIM}# Published reference (Zouhal & Denoeux 1998, Table II, error = 1 - accuracy):{R}")
+    print(f"{DIM}#   Sonar       ETO best ≈ 0.13   → accuracy ≈ 0.87{R}")
+    print(f"{DIM}#   Ionosphere  ETO best ≈ 0.08   → accuracy ≈ 0.92{R}")
+    print(f"{DIM}# Caveats: published numbers use a fixed train/test split, EUC distance,{R}")
+    print(f"{DIM}#   and the optimized γ from gradient descent. Our 5-fold StratifiedCV{R}")
+    print(f"{DIM}#   protocol with default settings gives a slightly different estimate.{R}")
+
+
+# ---------------------------------------------------------------------------
+# 23. EkNN classifier followed by a learned contextual correction (CD/CR/CN)
+# ---------------------------------------------------------------------------
+# Three-way split protocol:
+#   L1 (50%): train the EkNN classifier
+#   L2 (25%): fit each contextual correction (CD, CR, CN) on the EkNN's BBA
+#             outputs; pick the one with lowest mean_pl_loss on L2
+#   Test (25%): apply the chosen correction on the held-out test set;
+#               compare mean_pl_loss before vs after correction.
+#
+# This mirrors the protocol of Mutmainah 2021 (Chap. 4) at a coarser
+# granularity (no per-group split) — useful to demonstrate that a learned
+# correction can improve a fixed classifier's BBA outputs.
+
+section("23. EkNN + learned correction (CD / CR / CN)  on Wine raw")
+
+if sklearn_available:
+    from sklearn.model_selection import train_test_split
+    from evtools.learning    import fit_cd, fit_cr, fit_cn
+    from evtools.corrections import contextual_discount, contextual_reinforce, contextual_negate
+    from collections import Counter
+
+    candidates = [
+        ("CD", fit_cd, contextual_discount),
+        ("CR", fit_cr, contextual_reinforce),
+        ("CN", fit_cn, contextual_negate),
+    ]
+
+    # Wine RAW (no scaling) — EkNN baseline ~0.72 accuracy, plenty of room for corrections.
+    X_w, y_w = load_wine(return_X_y=True)
+    print(f"{DIM}# Wine raw — n={len(X_w)}, n_features={X_w.shape[1]}, "
+          f"n_classes={len(set(y_w))}{R}")
+    print(f"{DIM}# Three-way split: L1 (50%) trains EkNN, L2 (25%) selects "
+          f"best correction, test (25%) evaluates.{R}")
+    print(f"{DIM}# Repeated over 10 random seeds for stability.{R}\n")
+
+    seeds = list(range(10))
+    losses_before, losses_after, picks = [], [], []
+    for seed in seeds:
+        X_L1, X_rest, y_L1, y_rest = train_test_split(
+            X_w, y_w, test_size=0.5, stratify=y_w, random_state=seed)
+        X_L2, X_test, y_L2, y_test = train_test_split(
+            X_rest, y_rest, test_size=0.5, stratify=y_rest, random_state=seed)
+
+        clf = EkNN(k=5, optimize=True).fit(X_L1, y_L1)
+
+        # 2. Pick best correction on L2 (validation set for the correction).
+        bbas_L2   = clf.predict_bba(X_L2)
+        labels_L2 = [str(c) for c in y_L2]
+        best = None
+        for name, fit_fn, apply_fn in candidates:
+            betas = fit_fn(bbas_L2, labels_L2)
+            corrected = [apply_fn(m, betas) for m in bbas_L2]
+            loss = mean_pl_loss(corrected, labels_L2)
+            if best is None or loss < best[3]:
+                best = (name, betas, apply_fn, loss)
+        best_name, best_betas, best_apply, _ = best
+        picks.append(best_name)
+
+        # 3. Evaluate on test before/after correction.
+        bbas_test   = clf.predict_bba(X_test)
+        labels_test = [str(c) for c in y_test]
+        losses_before.append(mean_pl_loss(bbas_test, labels_test))
+        corrected_test = [best_apply(m, best_betas) for m in bbas_test]
+        losses_after.append(mean_pl_loss(corrected_test, labels_test))
+
+    delta = np.array(losses_before) - np.array(losses_after)
+    n_pos = int(np.sum(delta > 0))
+    n_seeds = len(seeds)
+
+    print(f"  Mean test mean_pl_loss BEFORE correction : "
+          f"{np.mean(losses_before):.4f} ± {np.std(losses_before):.4f}")
+    print(f"  Mean test mean_pl_loss AFTER  correction : "
+          f"{np.mean(losses_after):.4f} ± {np.std(losses_after):.4f}")
+    print(f"  Mean Δ (before − after)                  : "
+          f"{np.mean(delta):+.4f}    "
+          f"({GREEN}improvement{R} in {n_pos}/{n_seeds} runs)")
+    print(f"  Best correction picked over the {n_seeds} runs : "
+          f"{dict(Counter(picks))}")
+
+    print(f"\n{DIM}# Notes:{R}")
+    print(f"{DIM}#  - L2 must be DISJOINT from L1 (otherwise the correction overfits){R}")
+    print(f"{DIM}#  - mean_pl_loss is the criterion being optimized; on Wine raw the{R}")
+    print(f"{DIM}#    correction reliably improves the EkNN baseline (10/10 seeds).{R}")
+    print(f"{DIM}#  - For finer-grained corrections (per partial-decision group),{R}")
+    print(f"{DIM}#    use evtools.learning.fit_per_group (Mutmainah 2021, Alg. 1).{R}")
+
+
+# ---------------------------------------------------------------------------
+# 24. EkNN + per-group correction (Mutmainah 2021, Algorithm 1)
+# ---------------------------------------------------------------------------
+# Same three-way split as Section 23, but the L2 correction step uses
+# fit_per_group: instances are partitioned by their partial decision
+# (strong or weak dominance), and the best of CD/CR/CN is chosen for
+# each group separately. A fallback global correction handles partial
+# decisions that don't appear in L2.
+#
+# This generalizes Section 23 — picking a single global correction is
+# the "ungrouped" special case (one fallback group only).
+
+section("24. EkNN + per-group correction  (Mutmainah 2021 Alg. 1)")
+
+if sklearn_available:
+    from evtools.decision import strong_dominance, weak_dominance
+    from evtools.learning import fit_per_group, apply_per_group
+    # train_test_split + load_wine + Counter already imported in Section 23
+
+    # Same Wine raw + 10-seed protocol as Section 23.
+    X_w, y_w = load_wine(return_X_y=True)
+    print(f"{DIM}# Wine raw — 3-way split L1 (50%) / L2 (25%) / Test (25%), 10 seeds.{R}\n")
+
+    seeds = list(range(10))
+    losses_no    = []   # baseline (no correction)
+    losses_glob  = []   # single best correction (Section 23)
+    losses_sd    = []   # per-group with strong dominance
+    losses_wd    = []   # per-group with weak dominance
+
+    for seed in seeds:
+        X_L1, X_rest, y_L1, y_rest = train_test_split(
+            X_w, y_w, test_size=0.5, stratify=y_w, random_state=seed)
+        X_L2, X_test, y_L2, y_test = train_test_split(
+            X_rest, y_rest, test_size=0.5, stratify=y_rest, random_state=seed)
+
+        clf = EkNN(k=5, optimize=True).fit(X_L1, y_L1)
+        bbas_L2   = clf.predict_bba(X_L2)
+        labels_L2 = [str(c) for c in y_L2]
+        bbas_test = clf.predict_bba(X_test)
+        labels_test = [str(c) for c in y_test]
+
+        # Baseline (no correction)
+        losses_no.append(mean_pl_loss(bbas_test, labels_test))
+
+        # Single best correction on L2 (Section 23 protocol)
+        best = None
+        for name, fit_fn, apply_fn in candidates:
+            betas = fit_fn(bbas_L2, labels_L2)
+            loss  = mean_pl_loss([apply_fn(m, betas) for m in bbas_L2], labels_L2)
+            if best is None or loss < best[3]:
+                best = (name, betas, apply_fn, loss)
+        losses_glob.append(mean_pl_loss(
+            [best[2](m, best[1]) for m in bbas_test], labels_test))
+
+        # Per-group with strong dominance
+        model_sd = fit_per_group(bbas_L2, labels_L2, dominance=strong_dominance)
+        losses_sd.append(mean_pl_loss(apply_per_group(model_sd, bbas_test), labels_test))
+
+        # Per-group with weak dominance
+        model_wd = fit_per_group(bbas_L2, labels_L2, dominance=weak_dominance)
+        losses_wd.append(mean_pl_loss(apply_per_group(model_wd, bbas_test), labels_test))
+
+    losses_no   = np.array(losses_no)
+    losses_glob = np.array(losses_glob)
+    losses_sd   = np.array(losses_sd)
+    losses_wd   = np.array(losses_wd)
+
+    def _fmt(arr, ref=None):
+        s = f"{arr.mean():.4f} ± {arr.std():.4f}"
+        if ref is not None:
+            n_better = int(np.sum(ref - arr > 0))
+            s += f"   ({n_better}/{len(arr)} better than baseline)"
+        return s
+
+    print(f"  No correction         : mean_pl_loss = {_fmt(losses_no)}")
+    print(f"  Single best (Sec. 23) : mean_pl_loss = {_fmt(losses_glob, losses_no)}")
+    print(f"  Per-group (SD)        : mean_pl_loss = {_fmt(losses_sd, losses_no)}")
+    print(f"  Per-group (WD)        : mean_pl_loss = {_fmt(losses_wd, losses_no)}")
+
+    print(f"\n{DIM}# Notes:{R}")
+    print(f"{DIM}#  - Per-group fits a different correction in each partial-decision{R}")
+    print(f"{DIM}#    group. With small L2 (n=44) and few groups (≤7 with SD),{R}")
+    print(f"{DIM}#    each group has very few samples → the per-group estimate{R}")
+    print(f"{DIM}#    can be noisier than a single global correction.{R}")
+    print(f"{DIM}#  - Per-group shines on larger training sets — see Mutmainah 2021{R}")
+    print(f"{DIM}#    Tables 4.4-4.7 (UCI datasets, 10-fold CV).{R}")

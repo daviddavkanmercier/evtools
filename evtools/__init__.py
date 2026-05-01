@@ -44,6 +44,11 @@ evtools.display
     accepts ``all_kinds=False``). DSVector.__repr__ delegates to
     to_ansi, _repr_html_ to to_html.
 
+evtools.classifiers
+    Evidential classifiers based on belief functions. Currently provides
+    EkNN (Denoeux 1995, Zouhal & Denoeux 1998). ENN (Denoeux 2000)
+    planned.
+
 evtools.constants
     Numerical tolerance constants used throughout the library.
 
@@ -64,7 +69,8 @@ from . import decision
 from . import metrics
 from . import learning
 from . import display
+from . import classifiers
 from .dsvector import DSVector, Kind
 
-__version__ = "0.23.1"
-__all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "DSVector", "Kind"]
+__version__ = "0.24.0"
+__all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "classifiers", "DSVector", "Kind"]
