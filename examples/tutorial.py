@@ -920,7 +920,10 @@ if sklearn_available:
     for name, openml_id in [("Sonar", 40)             # OpenML "sonar" id=40
                           , ("Ionosphere", 59)]:      # OpenML "ionosphere" id=59
         try:
-            data = fetch_openml(data_id=openml_id, as_frame=False, parser="liac-arff")
+            data = fetch_openml(
+                data_id=openml_id, as_frame=False, parser="liac-arff",
+                delay=2.0, n_retries=5,
+            )
             X = np.asarray(data.data, dtype=float)
             y = np.asarray(data.target)
             (acc_m, acc_s), (pl_m, pl_s) = _evaluate(X, y, name)
@@ -929,7 +932,11 @@ if sklearn_available:
                   f"mean_pl_loss={pl_m:.4f} ± {pl_s:.4f}")
         except Exception as e:
             # Network / OpenML issues — fall back gracefully
-            print(f"  {name:<11}  {DIM}skipped (could not load: {type(e).__name__}){R}")
+            print(f"  {name:<11}  {DIM}skipped (could not load: "
+                  f"{type(e).__name__}){R}")
+            print(f"  {DIM}  → check internet connection, or pre-cache the dataset:{R}")
+            print(f"  {DIM}    `from sklearn.datasets import fetch_openml; "
+                  f"fetch_openml(data_id={openml_id})`{R}")
 
     print()
     print(f"{DIM}# Published reference (Zouhal & Denoeux 1998, Table II, error = 1 - accuracy):{R}")
