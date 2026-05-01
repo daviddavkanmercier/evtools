@@ -79,8 +79,8 @@ def _kind_label(m: "DSVector") -> str:
         Kind.M:   "Basic Belief Assignment",
         Kind.BEL: "Belief function",
         Kind.PL:  "Plausibility function",
-        Kind.B:   "Commonality function",
-        Kind.Q:   "Implicability function",
+        Kind.B:   "Implicability function",
+        Kind.Q:   "Commonality function",
         Kind.V:   "Disjunctive weights",
         Kind.W:   "Conjunctive weights",
     }

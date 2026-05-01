@@ -14,8 +14,8 @@ Supported kinds
 Kind.M   : Basic Belief Assignment (mass function)
 Kind.BEL : Belief function
 Kind.PL  : Plausibility function
-Kind.B   : Commonality function
-Kind.Q   : Implicability function
+Kind.B   : Implicability function
+Kind.Q   : Commonality function
 Kind.V   : Disjunctive weight function
 Kind.W   : Conjunctive weight function
 
@@ -65,8 +65,8 @@ class Kind(Enum):
     M   = "m"    # Basic Belief Assignment
     BEL = "bel"  # Belief function
     PL  = "pl"   # Plausibility function
-    B   = "b"    # Commonality function
-    Q   = "q"    # Implicability function
+    B   = "b"    # Implicability function
+    Q   = "q"    # Commonality function
     V   = "v"    # Disjunctive weight function
     W   = "w"    # Conjunctive weight function
 
@@ -623,11 +623,11 @@ class DSVector:
         return self.to(Kind.PL)
 
     def to_b(self)   -> "DSVector":
-        """Convert to commonality function (Kind.B)."""
+        """Convert to implicability function (Kind.B)."""
         return self.to(Kind.B)
 
     def to_q(self)   -> "DSVector":
-        """Convert to implicability function (Kind.Q)."""
+        """Convert to commonality function (Kind.Q)."""
         return self.to(Kind.Q)
 
     def to_v(self)   -> "DSVector":

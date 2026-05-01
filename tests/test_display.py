@@ -46,8 +46,8 @@ class TestReprPlain:
         assert "Basic Belief Assignment" in to_string(M)
         assert "Belief function"         in to_string(M_BEL)
         assert "Plausibility function"   in to_string(M_PL)
-        assert "Commonality function"    in to_string(M_B)
-        assert "Implicability function"  in to_string(M_Q)
+        assert "Implicability function"  in to_string(M_B)
+        assert "Commonality function"    in to_string(M_Q)
 
     def test_column_header_shows_kind_symbol(self):
         for v, sym in [(M,"m"), (M_BEL,"bel"), (M_PL,"pl"), (M_B,"b"), (M_Q,"q")]:
@@ -59,7 +59,7 @@ class TestReprPlain:
         assert "{r}" in p
 
     def test_empty_set_label(self):
-        assert "∅" in to_string(M_Q)  # q has ∅ as focal element
+        assert "∅" in to_string(M_Q)  # commonality q(∅) = 1 always
 
     def test_total_only_for_m(self):
         assert "Total" in to_string(M)

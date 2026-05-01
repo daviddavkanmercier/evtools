@@ -72,5 +72,5 @@ from . import display
 from . import classifiers
 from .dsvector import DSVector, Kind
 
-__version__ = "0.24.0"
+__version__ = "0.25.0"
 __all__ = ["conversions", "combinations", "corrections", "decision", "metrics", "learning", "display", "classifiers", "DSVector", "Kind"]

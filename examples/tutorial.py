@@ -403,7 +403,7 @@ print(m.to_string())
 
 # Column header adapts to kind
 print(f"\n{DIM}# Column header adapts to the kind{R}")
-for kind_fn, label in [("to_bel","Belief"), ("to_pl","Plausibility"), ("to_q","Implicability")]:
+for kind_fn, label in [("to_bel","Belief"), ("to_pl","Plausibility"), ("to_q","Commonality")]:
     v = getattr(m, kind_fn)()
     print(f"\n{DIM}# {label} function — header shows '{v.kind.value}'{R}")
     print(v.to_string())

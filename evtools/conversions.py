@@ -56,11 +56,11 @@ from .constants import ZERO_MASS
 
 
 # ---------------------------------------------------------------------------
-# bto* — from commonality function
+# bto* — from implicability function
 # ---------------------------------------------------------------------------
 
 def btobel(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to belief function *bel*.
+    """Convert implicability *b* to belief function *bel*.
 
     bel(A) = b(A) - m(∅)
     """
@@ -68,7 +68,7 @@ def btobel(b: np.ndarray) -> np.ndarray:
 
 
 def btom(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to mass function *m* using the FMT (Smets)."""
+    """Convert implicability *b* to mass function *m* using the FMT (Smets)."""
     b = np.copy(b)
     lb = len(b)
     natoms = int(np.round(np.log2(lb)))
@@ -82,7 +82,7 @@ def btom(b: np.ndarray) -> np.ndarray:
 
 
 def btopl(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to plausibility function *pl*.
+    """Convert implicability *b* to plausibility function *pl*.
 
     pl(A) = 1 - b(Ā)
     """
@@ -95,19 +95,19 @@ def btopl(b: np.ndarray) -> np.ndarray:
 
 
 def btoq(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to implicability function *q*."""
+    """Convert implicability *b* to commonality function *q*."""
     return pltoq(btopl(b))
 
 
 def btov(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to disjunctive weight function *v* (Denoeux 2008)."""
+    """Convert implicability *b* to disjunctive weight function *v* (Denoeux 2008)."""
     v = np.exp(-btom(np.log(b)))
     v[0] = 1
     return v
 
 
 def btow(b: np.ndarray) -> np.ndarray:
-    """Convert commonality *b* to conjunctive weight function *w*."""
+    """Convert implicability *b* to conjunctive weight function *w*."""
     return qtow(btoq(b))
 
 
@@ -116,7 +116,7 @@ def btow(b: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def beltob(bel: np.ndarray) -> np.ndarray:
-    """Convert belief function *bel* to commonality *b*.
+    """Convert belief function *bel* to implicability *b*.
 
     b(A) = bel(A) + m(∅)
     """
@@ -135,7 +135,7 @@ def beltopl(bel: np.ndarray) -> np.ndarray:
 
 
 def beltoq(bel: np.ndarray) -> np.ndarray:
-    """Convert belief function *bel* to implicability function *q*."""
+    """Convert belief function *bel* to commonality function *q*."""
     return btoq(bel)
 
 
@@ -154,7 +154,7 @@ def beltow(bel: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def mtob(m: np.ndarray) -> np.ndarray:
-    """Convert mass function *m* to commonality *b* using the FMT (Smets)."""
+    """Convert mass function *m* to implicability *b* using the FMT (Smets)."""
     m = np.copy(m)
     lm = len(m)
     natoms = int(np.round(np.log2(lm)))
@@ -178,7 +178,7 @@ def mtopl(m: np.ndarray) -> np.ndarray:
 
 
 def mtoq(m: np.ndarray) -> np.ndarray:
-    """Convert mass function *m* to implicability function *q* using the FMT (Smets)."""
+    """Convert mass function *m* to commonality function *q* using the FMT (Smets)."""
     m = np.copy(m)
     lm = len(m)
     natoms = int(np.round(np.log2(lm)))
@@ -206,7 +206,7 @@ def mtow(m: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def pltob(pl: np.ndarray) -> np.ndarray:
-    """Convert plausibility function *pl* to commonality *b*.
+    """Convert plausibility function *pl* to implicability *b*.
 
     b(A) = 1 - pl(Ā)
     """
@@ -227,7 +227,7 @@ def pltom(pl: np.ndarray) -> np.ndarray:
 
 
 def pltoq(pl: np.ndarray) -> np.ndarray:
-    """Convert plausibility function *pl* to implicability function *q* (Smets 2002)."""
+    """Convert plausibility function *pl* to commonality function *q* (Smets 2002)."""
     q = np.abs(btom(pl))
     q[0] = 1
     return q
@@ -244,21 +244,21 @@ def pltow(pl: np.ndarray) -> np.ndarray:
 
 
 # ---------------------------------------------------------------------------
-# qto* — from implicability function
+# qto* — from commonality function
 # ---------------------------------------------------------------------------
 
 def qtob(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to commonality *b*."""
+    """Convert commonality function *q* to implicability *b*."""
     return pltob(qtopl(q))
 
 
 def qtobel(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to belief function *bel*."""
+    """Convert commonality function *q* to belief function *bel*."""
     return btobel(qtob(q))
 
 
 def qtom(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to mass function *m* using the FMT (Smets)."""
+    """Convert commonality function *q* to mass function *m* using the FMT (Smets)."""
     q = np.copy(q)
     lq = len(q)
     natoms = int(np.round(np.log2(lq)))
@@ -272,19 +272,19 @@ def qtom(q: np.ndarray) -> np.ndarray:
 
 
 def qtopl(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to plausibility function *pl* (Smets 2002)."""
+    """Convert commonality function *q* to plausibility function *pl* (Smets 2002)."""
     q = np.copy(q)
     q[0] = 0
     return np.abs(btom(q))
 
 
 def qtov(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to disjunctive weight function *v*."""
+    """Convert commonality function *q* to disjunctive weight function *v*."""
     return btov(qtob(q))
 
 
 def qtow(q: np.ndarray) -> np.ndarray:
-    """Convert implicability function *q* to conjunctive weight function *w* (Denoeux 2008)."""
+    """Convert commonality function *q* to conjunctive weight function *w* (Denoeux 2008)."""
     w = np.exp(-qtom(np.log(q)))
     w[-1] = 1
     return w
@@ -295,7 +295,7 @@ def qtow(q: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def vtob(v: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *v* to commonality *b* (Denoeux 2008)."""
+    """Convert disjunctive weight function *v* to implicability *b* (Denoeux 2008)."""
     return np.prod(v) / np.exp(mtob(np.log(v)))
 
 
@@ -315,7 +315,7 @@ def vtopl(v: np.ndarray) -> np.ndarray:
 
 
 def vtoq(v: np.ndarray) -> np.ndarray:
-    """Convert disjunctive weight function *v* to implicability function *q*."""
+    """Convert disjunctive weight function *v* to commonality function *q*."""
     return btoq(vtob(v))
 
 
@@ -329,7 +329,7 @@ def vtow(v: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def wtob(w: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *w* to commonality *b*."""
+    """Convert conjunctive weight function *w* to implicability *b*."""
     return qtob(wtoq(w))
 
 
@@ -349,7 +349,7 @@ def wtopl(w: np.ndarray) -> np.ndarray:
 
 
 def wtoq(w: np.ndarray) -> np.ndarray:
-    """Convert conjunctive weight function *w* to implicability function *q* (Denoeux 2008)."""
+    """Convert conjunctive weight function *w* to commonality function *q* (Denoeux 2008)."""
     return np.prod(w) / np.exp(mtoq(np.log(w)))
 
 

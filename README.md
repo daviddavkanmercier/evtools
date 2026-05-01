@@ -33,8 +33,8 @@ on demand and cached.
 | `Kind.M`   | `m`   | Basic Belief Assignment (mass function) |
 | `Kind.BEL` | `bel` | Belief function |
 | `Kind.PL`  | `pl`  | Plausibility function |
-| `Kind.B`   | `b`   | Commonality function |
-| `Kind.Q`   | `q`   | Implicability function |
+| `Kind.B`   | `b`   | Implicability function |
+| `Kind.Q`   | `q`   | Commonality function |
 | `Kind.V`   | `v`   | Disjunctive weight function |
 | `Kind.W`   | `w`   | Conjunctive weight function |
 
@@ -77,8 +77,8 @@ ns = DSVector.negative_simple(["a", "b", "c"], frozenset({"a"}), beta=0.4)
 ```python
 pl  = m.to(Kind.PL)   # returns a new DSVector with kind=Kind.PL
 bel = m.to_bel()      # shortcut
-b   = m.to_b()        # commonality
-q   = m.to_q()        # implicability
+b   = m.to_b()        # implicability
+q   = m.to_q()        # commonality
 v   = m.to_v()        # disjunctive weights (requires subnormal BBA, m(∅) > 0)
 w   = m.to_w()        # conjunctive weights (requires non-dogmatic BBA, m(Ω) > 0)
 ```
